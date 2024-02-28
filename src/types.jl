@@ -1,0 +1,98 @@
+# Author: Siyuan Yu and Congkai Shen 
+# Position: Graduate Student in University of Michigan
+# Date Created: 02/28/2024
+
+
+using JuMP
+using Parameters
+using DataFrames
+
+_Ipopt_defaults = (
+    "mu_strategy" => "adaptive",
+    "max_iter" => 100,
+    "tol" => 6e-3,
+    "dual_inf_tol" => 2.,
+    "constr_viol_tol" => 3e-1,
+    "compl_inf_tol" => 3e-1,
+    "acceptable_tol" => 2e-2,
+    "acceptable_constr_viol_tol" => 0.02,
+    "acceptable_dual_inf_tol" => 1e10,
+    "acceptable_compl_inf_tol" => 0.02,
+    "warm_start_init_point" => "yes",
+    "fixed_variable_treatment" => "relax_bounds",
+    "max_cpu_time" => 0.1,
+    "print_level" => 0
+    )
+
+@with_kw mutable struct States
+    num::Int                                    = 0                                 # Number of States
+    name::Vector{Symbol}                        = Vector{Symbol}[]                  # Names of States Variable
+    pts::Int                                    = 0                                 # Number of points in States Variable
+end
+
+@with_kw mutable struct Control
+    num::Int                                    = 0                                 # Number of Control
+    name::Vector{Symbol}                        = Vector{Symbol}[]                  # Names of Constrol Variable
+    pts::Int                                    = 0                                 # Number of points in Control Variable
+end
+
+@with_kw mutable struct Solver
+    name::Symbol                                = :Ipopt                            # Default solver name
+    settings::Tuple                             = _Ipopt_defaults                   # Default settings
+end
+
+@with_kw mutable struct OCP_Formulation
+    IntegrationScheme::Symbol                   = :BkwEuler                         # Integration integrationScheme
+    t_int::Vector{Any}                          = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
+    # dynamics::Vector{} Function handle here
+end
+
+@with_kw mutable struct OCPSetting{ T <: Number }
+    states::States                              = States()                          # States structure in OCPSetting
+    control::Control                            = Control()                         # Control structure in OCPSetting
+    tfDesignVariable                            = false                             # Determines whether tf is a design variable
+    ocpf::OCP_Formulation                       = OCP_Formulation()                 # OCP Formulation structure in OCP setting
+    InternalLogging::Bool                       = true                              # Bool for logging data internally
+    Method::Symbol                              = :Collocation                      # Symbol for using Collocation / Single Shooting
+    X0slack::Bool                               = false                             # Boolean for using tolerance on initial states
+    XFslack::Bool                               = false                             # Boolean for using tolerance on final states
+end
+
+@with_kw mutable struct OCPBound{ T <: Number }
+    tfMin::Float64                              = 0.0                               # tf minimum
+    tfMax::Float64                              = 100                               # tf maximum
+    X0::Vector{T}                               = Vector{T}[]                       # Initial Condition
+    X0_tol::Vector{T}                           = Vector{T}[]                       # Initial Condition Slack Variable 
+    XF::Vector{T}                               = Vector{T}[]                       # Final Condition Slack Variable 
+    XF_tol::Vector{T}                           = Vector{T}[]                       # Final Condition Slack Variable 
+    XL::Vector{T}                               = Vector{T}[]                       # Lower bound of states variable
+    XU::Vector{T}                               = Vector{T}[]                       # Upper bound of states variable
+    CL::Vector{T}                               = Vector{T}[]                       # Lower bound of control variable
+    CU::Vector{T}                               = Vector{T}[]                       # Upper bound of control variable
+end
+
+@with_kw mutable struct OCPParameter{ T <: Number }
+    x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
+    u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
+    mdl::JuMP.Model                             = JuMP.Model()                      # JuMP model
+end
+
+@with_kw mutable struct OCPResults{ T <: Number }
+    X::Matrix{Float64}                          = Matrix{Float64}(undef,0,0)        # State variable value
+    U::Matrix{Float64}                          = Matrix{Float64}(undef,0,0)        # Control variable value
+    Status::Symbol                              = :InFeasible                       # Status symbol: :Infeasible, :UserLimit, :Optimal
+    IterNum::Int64                              = 0                                 # Iteration number from Solver
+    TerminalStatus::MOI.TerminationStatusCode   = MOI.OTHER_ERROR                   # Math operation interface termination status
+    TSolve::Float64                             = 0.0                               # Solve time
+    Objval::Float64                             = 0.0                               # objective value
+    Dfs::Vector{DataFrame}                      = Vector{DataFrame}()               # DataFrame results of OCP
+end
+
+@with_kw mutable struct OCP{ T <: Number }
+    s::OCPSetting{T}                            = OCPSetting{T}()
+    b::OCPBound{T}                              = OCPBound{T}()
+    p::OCPParameter{T}                          = OCPParameter{T}()    
+    r::OCPResults{T}                            = OCPResults{T}()
+end
+
+OCP() = OCP{Float64}()
