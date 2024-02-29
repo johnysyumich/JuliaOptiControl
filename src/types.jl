@@ -46,6 +46,7 @@ end
     Np::Int64                                   = 0                                 # NckPoint 
     IntegrationScheme::Symbol                   = :bkwEuler                         # Integration integrationScheme
     tf::Any                                     = Any                               # Total time, type depend on the 
+    tw::Vector{Float64}                         = Vector{Float64}()                 # Time weight
     TInt::Vector{Any}                           = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
     mdl::JuMP.Model                             = JuMP.Model()                      # JuMP model
     # dynamics::Vector{} Function handle here
@@ -97,5 +98,5 @@ end
     p::OCPParameter{T}                          = OCPParameter{T}()    
     r::OCPResults{T}                            = OCPResults{T}()
 end
-
+OCPFormulation() = OCPFormulation{Float64}()
 OCP() = OCP{Float64}()
