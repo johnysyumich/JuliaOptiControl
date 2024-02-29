@@ -44,4 +44,72 @@ function defineControls!(ocp::OCP, controls::Vector{Symbol})
 end
 
 
-function Configure!(ocp::OCP)
+function ConfigurePredefined(ocp::OCP; kwargs...)
+    # all inputs here: tfDV, tf, Np, Integration Scheme
+    # Integration scheme: bkwEuler, trapezoidal
+    # Trajectory methods: SingleShooting Collocation
+    OCPForm = OCPFormulation{Float64}()
+    OCPForm.mdl = JuMP.Model()
+    kw = Dict(kwargs)
+    if haskey(kw, :tfDV)
+        OCPForm.tfDV = get(kw, :tfDV, 0)
+    end
+    if haskey(kw, :tf)
+        if OCPForm.tfDV == true
+            @warn "Conflict intructions to put tf as design variable, change to fixed horizon"
+            OCPForm.tfDV = false
+        end
+        OCPForm.tf = get(kw, :tf, 0)
+        if OCPForm.tf <= ocp.b.tfMin || OCPForm.tf >= ocp.b.tfMax
+            error("Please make sure tf ∈ [$(ocp.b.tfMin), $(ocp.b.tfMax)]")
+        end
+    else
+        if OCPForm.tfDV == false
+            error("Either treat tf as design variable or use fixed time horizon")
+        end
+    end
+
+
+    if haskey(kw, :TrajMethod)
+        TrajectoryMethod = get(kw, :TrajMethod, 0)
+        if TrajectoryMethod ∈ [:SingleShooting, :Collocation]
+            ocp.s.TrajMethod = TrajectoryMethod
+        end
+    end
+
+    if haskey(kw, :IntegrationScheme)
+        IntegrationScheme = get(kw, :IntegrationScheme, 0)
+        if IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+            OCPForm.IntegrationScheme = IntegrationScheme
+        else
+            @warn "$IntegrationScheme is not implemented, use default (bkwEuler)"
+        end
+    end
+
+    if haskey(kw, :Np)
+        Np = get(kw, :Np, 0)
+        NpType = typeof(Np)
+        if NpType != Int64 
+            if NpType <: Real
+                @warn "Round Np to nearest integer"
+                OCPForm.Np = Int(round(a))
+            else
+                error("Wrong type of number of points, should be Int64")
+            end
+        else
+            OCPForm.Np = Np
+        end
+        if OCPForm.Np <= 0
+            error("Make sure Np is an integer and is larger than 0")
+        end
+    else
+        error("No number of point input")
+    end
+    if OCPForm.tfDV == false && OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+        OCPForm.TInt = OCPForm.tf / (OCPForm.Np - 1) .* ones(OCPForm.Np - 1)
+    elseif OCPForm.tfDV == true && OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+        OCPForm.tf = @variable(OCPForm.mdl, ocp.b.tfMin <= tf <= ocp.b.tfMax)
+        OCPForm.TInt = @expression(OCPForm.mdl, [idx = 1:OCPForm.Np - 1], OCPForm.tf / (OCPForm.Np - 1))
+    end
+    return OCPForm
+end

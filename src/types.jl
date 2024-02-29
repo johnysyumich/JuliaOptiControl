@@ -41,19 +41,22 @@ end
     settings::Tuple                             = _Ipopt_defaults                   # Default settings
 end
 
-@with_kw mutable struct OCP_Formulation
-    IntegrationScheme::Symbol                   = :BkwEuler                         # Integration integrationScheme
-    t_int::Vector{Any}                          = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
+@with_kw mutable struct OCPFormulation{ T <: Number }
+    UserDefined::Bool                           = false                             # Boolean for user defined formulation
+    tfDV::Bool                                  = false                             # Determines whether tf is a design variable
+    Np::Int64                                   = 0                                 # NckPoint 
+    IntegrationScheme::Symbol                   = :bkwEuler                         # Integration integrationScheme
+    tf::Any                                     = Any                               # Total time, type depend on the 
+    TInt::Vector{Any}                           = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
+    mdl::JuMP.Model                             = JuMP.Model()                      # JuMP model
     # dynamics::Vector{} Function handle here
 end
 
 @with_kw mutable struct OCPSetting{ T <: Number }
     states::States                              = States()                          # States structure in OCPSetting
     control::Control                            = Control()                         # Control structure in OCPSetting
-    tfDesignVariable                            = false                             # Determines whether tf is a design variable
-    ocpf::OCP_Formulation                       = OCP_Formulation()                 # OCP Formulation structure in OCP setting
     InternalLogging::Bool                       = true                              # Bool for logging data internally
-    Method::Symbol                              = :Collocation                      # Symbol for using Collocation / Single Shooting
+    TrajMethod::Symbol                          = :Collocation                      # Symbol for using Collocation / Single Shooting
     X0slack::Bool                               = false                             # Boolean for using tolerance on initial states
     XFslack::Bool                               = false                             # Boolean for using tolerance on final states
 end
@@ -74,12 +77,12 @@ end
 @with_kw mutable struct OCPParameter{ T <: Number }
     x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
-    mdl::JuMP.Model                             = JuMP.Model()                      # JuMP model
 end
 
 @with_kw mutable struct OCPResults{ T <: Number }
     X::Matrix{Float64}                          = Matrix{Float64}(undef,0,0)        # State variable value
     U::Matrix{Float64}                          = Matrix{Float64}(undef,0,0)        # Control variable value
+    Tst::Vector{Float64}                        = Vector{Float64}()                 # Time value
     Status::Symbol                              = :InFeasible                       # Status symbol: :Infeasible, :UserLimit, :Optimal
     IterNum::Int64                              = 0                                 # Iteration number from Solver
     TerminalStatus::MOI.TerminationStatusCode   = MOI.OTHER_ERROR                   # Math operation interface termination status
@@ -91,6 +94,7 @@ end
 @with_kw mutable struct OCP{ T <: Number }
     s::OCPSetting{T}                            = OCPSetting{T}()
     b::OCPBound{T}                              = OCPBound{T}()
+    f::OCPFormulation{T}                        = OCPFormulation{T}()
     p::OCPParameter{T}                          = OCPParameter{T}()    
     r::OCPResults{T}                            = OCPResults{T}()
 end
