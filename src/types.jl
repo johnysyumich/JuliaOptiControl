@@ -42,7 +42,6 @@ end
 end
 
 @with_kw mutable struct OCPFormulation{ T <: Number }
-    UserDefined::Bool                           = false                             # Boolean for user defined formulation
     tfDV::Bool                                  = false                             # Determines whether tf is a design variable
     Np::Int64                                   = 0                                 # NckPoint 
     IntegrationScheme::Symbol                   = :bkwEuler                         # Integration integrationScheme
