@@ -6,8 +6,9 @@
 using JuMP
 using Parameters
 using DataFrames
+using Ipopt
 
-_Ipopt_defaults = (
+_Ipopt_MPC_defaults = (
     "mu_strategy" => "adaptive",
     "max_iter" => 100,
     "tol" => 6e-3,
@@ -21,6 +22,15 @@ _Ipopt_defaults = (
     "warm_start_init_point" => "yes",
     "fixed_variable_treatment" => "relax_bounds",
     "max_cpu_time" => 0.1,
+    "print_level" => 0
+    )
+
+_Ipopt_defaults = (
+    "mu_strategy" => "adaptive",
+    "max_iter" => 1000,
+    "warm_start_init_point" => "no",
+    "fixed_variable_treatment" => "relax_bounds",
+    "max_cpu_time" => 10,
     "print_level" => 0
     )
 
@@ -49,12 +59,13 @@ end
     tw::Vector{Float64}                         = Vector{Float64}()                 # Time weight
     TInt::Vector{Any}                           = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
     mdl::JuMP.Model                             = JuMP.Model()                      # JuMP model
-    # dynamics::Vector{} Function handle here
+    dx::Vector{Any}                             = Vector{Any}()                     #Function handle here
 end
 
 @with_kw mutable struct OCPSetting{ T <: Number }
     states::States                              = States()                          # States structure in OCPSetting
     control::Control                            = Control()                         # Control structure in OCPSetting
+    solver::Solver                              = Solver()                          # Solver structure in OCPSetting
     InternalLogging::Bool                       = true                              # Bool for logging data internally
     TrajMethod::Symbol                          = :Collocation                      # Symbol for using Collocation / Single Shooting
     X0slack::Bool                               = false                             # Boolean for using tolerance on initial states

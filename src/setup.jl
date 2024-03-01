@@ -50,6 +50,7 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
     # Trajectory methods: SingleShooting Collocation
     OCPForm = OCPFormulation()
     OCPForm.mdl = JuMP.Model()
+    set_silent(OCPForm.mdl)
     kw = Dict(kwargs)
     if haskey(kw, :tfDV)
         OCPForm.tfDV = get(kw, :tfDV, 0)
@@ -114,6 +115,13 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
         OCPForm.tf = @variable(OCPForm.mdl, ocp.b.tfMin <= tf <= ocp.b.tfMax)
         OCPForm.TInt = @expression(OCPForm.mdl, [idx = 1:OCPForm.Np - 1], OCPForm.tf * OCPForm.tw[idx])
     end
+
+    if !haskey(kw, :dynamics)
+        error("No dynamics here")
+    else
+        OCPForm.dx = Vector{Any}(undef, OCPForm.Np)
+        OCPForm.dx[1:OCPForm.Np] .= get(kw, :dynamics, 0)
+    end
     return OCPForm
 end
 
@@ -151,7 +159,25 @@ function CheckOCPFormulation(ocp::OCP, OCPForm::OCPFormulation)
     return nothing
 end
 
+function DefineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tuple)
+    if SolverName == :Ipopt
+        set_optimizer(OCPForm.mdl, Ipopt.Optimizer)
+        set_attributes(OCPForm.mdl, Options...)
+    else
+        error("Solver $SolverName is not implemented")
+    end
+    return nothing
+end
+
+
+
+
 function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     CheckOCPFormulation(ocp, OCPForm)
+    ## TODO Configure the model setting
+    DefineSolver!(OCPForm, ocp.s.solver.name, ocp.s.solver.settings)
+    ## Currently only hard Constraints.
+    ## TODO Write the initial condition constraints
     
 end
+
