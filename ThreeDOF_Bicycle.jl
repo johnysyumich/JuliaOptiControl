@@ -24,3 +24,16 @@ function ThreeDOFBicycle_expr(states, controls)
   dx[8] = (jx)                                               # Longitudinal Acceleration
   return dx
 end
+
+
+function ThreeDOFBicycle_cons(states, controls)
+  ux = states[7]
+  ax = states[8]
+  cons = [ax + 0.1296 * (ux - 60); ax + 0.1296 * (ux - 50)]
+  return cons
+end
+
+function ThreeDOFBicycle_cost(states, controls)
+  sr = controls[2]
+  return sr^2
+end

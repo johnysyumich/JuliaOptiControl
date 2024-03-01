@@ -59,7 +59,10 @@ end
     tw::Vector{Float64}                         = Vector{Float64}()                 # Time weight
     TInt::Vector{Any}                           = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
     mdl::JuMP.Model                             = JuMP.Model()                      # JuMP model
-    dx::Vector{Any}                             = Vector{Any}()                     #Function handle here
+    dx::Vector{Any}                             = Vector{Any}()                     # Dynamics function handle here
+    cons::Vector{Any}                           = Vector{Any}()                     # Constraints function handle here
+    expr::Vector{Any}                           = Vector{Any}()                     # Expression function handle here
+
 end
 
 @with_kw mutable struct OCPSetting{ T <: Number }

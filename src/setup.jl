@@ -22,7 +22,10 @@ function defineOCP(;
     ocp.s.states.num    = numStates
     ocp.s.control.num   = numControls
     ocp.b.X0            = X0
+    ocp.b.X0_tol        = fill(NaN, numStates)
+    ocp.b.XF_tol        = fill(NaN, numStates)
     ocp.b.XL            = XL
+    ocp.b.XF            = XF
     ocp.b.XU            = XU
     ocp.b.CL            = CL
     ocp.b.CU            = CU
@@ -40,6 +43,17 @@ end
 function defineControls!(ocp::OCP, controls::Vector{Symbol})
     if length(controls) != ocp.s.control.num error("Wrong number of state variable") end
     ocp.s.control.name = controls
+    return nothing
+end
+function defineTolerance!(ocp::OCP; X0_tol=fill(NaN, ocp.s.states.num), XF_tol=fill(NaN, ocp.s.states.num))
+    if sum(isnan(X0_tol)) != ocp.s.states.num
+        ocp.s.X0slack == true
+        ocp.b.X0_tol =X0_tol
+    end
+    if sum(isnan(XF_tol)) != ocp.s.states.num
+        ocp.s.XFslack == true
+        ocp.b.XF_tol =XF_tol
+    end
     return nothing
 end
 
@@ -116,11 +130,21 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
         OCPForm.TInt = @expression(OCPForm.mdl, [idx = 1:OCPForm.Np - 1], OCPForm.tf * OCPForm.tw[idx])
     end
 
-    if !haskey(kw, :dynamics)
+    if !haskey(kw, :dx)
         error("No dynamics here")
     else
         OCPForm.dx = Vector{Any}(undef, OCPForm.Np)
-        OCPForm.dx[1:OCPForm.Np] .= get(kw, :dynamics, 0)
+        OCPForm.dx[1:OCPForm.Np] .= get(kw, :dx, 0)
+    end
+    OCPForm.cons = Vector{Any}(undef, OCPForm.Np)
+    if haskey(kw, :cons)
+        OCPForm.cons .= get(kw, :cons, 0)
+    end
+
+    OCPForm.expr = Vector{Any}(undef, OCPForm.Np)
+
+    if haskey(kw, :expr)
+        OCPForm.expr .= get(kw, :expr, 0)
     end
     return OCPForm
 end
@@ -159,7 +183,8 @@ function CheckOCPFormulation(ocp::OCP, OCPForm::OCPFormulation)
     return nothing
 end
 
-function DefineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tuple)
+
+function defineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tuple)
     if SolverName == :Ipopt
         set_optimizer(OCPForm.mdl, Ipopt.Optimizer)
         set_attributes(OCPForm.mdl, Options...)
@@ -175,9 +200,79 @@ end
 function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     CheckOCPFormulation(ocp, OCPForm)
     ## TODO Configure the model setting
-    DefineSolver!(OCPForm, ocp.s.solver.name, ocp.s.solver.settings)
-    ## Currently only hard Constraints.
-    ## TODO Write the initial condition constraints
+    defineSolver!(OCPForm, ocp.s.solver.name, ocp.s.solver.settings)
+    ## Currently only collocation.
+    ## TODO Write the Lower and upper bound
+    ocp.s.states.pts = ocp.s.control.pts = OCPForm.Np
+    ocp.p.x = @variable(OCPForm.mdl, ocp.b.XL[i] <= x[j in 1:ocp.s.states.pts, i in 1:ocp.s.states.num] <= ocp.b.XU[i])
+    ocp.p.u = @variable(OCPForm.mdl, ocp.b.CL[i] <= u[j in 1:ocp.s.control.pts, i in 1:ocp.s.control.num] <= ocp.b.CU[i])
+    ## fix the initial states
     
+    if !ocp.s.X0slack
+        for st = 1:1:ocp.s.states.num
+            if !isnan(ocp.b.X0[st]) fix(ocp.p.x[1, st], ocp.b.X0[st]; force = true) end
+        end
+    else
+        for st = 1:1:ocp.s.states.num
+            if !isnan(ocp.b.X0[st])
+                if !isnan(ocp.b.X0_tol[st])
+                    @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= ocp.p.x[1, st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
+                else
+                    @constraint(OCPForm.mdl, ocp.p.x[1, st] == ocp.b.X0[st])
+                end
+            end
+        end
+    end
+    
+    if !ocp.s.XFslack
+        for st = 1:1:ocp.s.states.num
+            if !isnan(ocp.b.XF[st]) fix(ocp.p.x[end, st], ocp.b.XF[st]; force = true) end
+        end
+    else
+        for st = 1:1:ocp.s.states.num
+            if !isnan(ocp.b.XF[st])
+                if !isnan(ocp.b.XF_tol[st])
+                    @constraint(OCPForm.mdl, ocp.b.XF[st] - ocp.b.XF_tol[st] <= ocp.p.x[end, st] <= ocp.b.XF[st] + ocp.b.XF_tol[st])
+                else
+                    @constraint(OCPForm.mdl, ocp.p.x[end, st] == ocp.b.XF[st])
+                end
+            end
+        end
+    end
+    
+    
+    
+    
+    # Dynamical Constraints
+    δx = Matrix{Any}(undef, ocp.s.states.pts, ocp.s.states.num)
+    for j in 1:ocp.s.states.pts
+        δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+    end
+    dynCon = Matrix{Any}(undef, ocp.s.states.pts - 1, ocp.s.states.num)
+    if OCPForm.IntegrationScheme == :bkwEuler
+        for k in 1:ocp.s.states.num
+            for i in 1:ocp.s.states.pts - 1
+                dynCon[i, k] = @constraint(OCPForm.mdl, ocp.p.x[i + 1, k]- ocp.p.x[i, k] == δx[i + 1, k] * OCPForm.TInt[i])
+            end
+        end
+    elseif OCPForm.IntegrationScheme == :trapezoidal
+        for k in 1:ocp.s.states.num
+            for i in 1:ocp.s.states.pts - 1
+                dynCon[i, k] = @constraint(OCPForm.mdl, ocp.p.x[i + 1, k]- ocp.p.x[i, k] == 0.5 * (δx[i + 1, k] + δx[i, k]) * OCPForm.TInt[i])
+            end
+        end
+    end
+    
+    
+    ## Inner States Constraints
+    for j in 1:ocp.s.states.pts 
+        if isassigned(OCPForm.cons, j)
+            @constraints(OCPForm.mdl, begin OCPForm.cons[j](ocp.p.x[j, :], ocp.p.u[j, :]) >= 0 end)
+        end
+    end
+
+    ocp.f = OCPForm
+    return nothing
+
 end
 
