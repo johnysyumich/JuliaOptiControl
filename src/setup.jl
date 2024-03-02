@@ -87,7 +87,7 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
 
     if haskey(kw, :IntegrationScheme)
         IntegrationScheme = get(kw, :IntegrationScheme, 0)
-        if IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+        if IntegrationScheme ∈ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]
             OCPForm.IntegrationScheme = IntegrationScheme
         else
             @warn "$IntegrationScheme is not implemented, use default (bkwEuler)"
@@ -114,10 +114,10 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
         error("No number of point input")
     end
 
-    if OCPForm.tfDV == false && OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+    if OCPForm.tfDV == false && OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]
         OCPForm.tw = 1 / (OCPForm.Np - 1) .* ones(OCPForm.Np - 1)
         OCPForm.TInt = OCPForm.tf .*  OCPForm.tw
-    elseif OCPForm.tfDV == true && OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+    elseif OCPForm.tfDV == true && OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]
         OCPForm.tw = 1 / (OCPForm.Np - 1) .* ones(OCPForm.Np - 1)
         OCPForm.tf = @variable(OCPForm.mdl, ocp.b.tfMin <= tf <= ocp.b.tfMax)
         OCPForm.TInt = @expression(OCPForm.mdl, [idx = 1:OCPForm.Np - 1], OCPForm.tf * OCPForm.tw[idx])
@@ -173,6 +173,10 @@ function CheckOCPFormulation(ocp::OCP, OCPForm::OCPFormulation)
         end
     end
 
+    if !(OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]) # Midpoint Collocation?
+        error("$(OCPForm.IntegrationScheme) is not implemented")
+    end
+
     return nothing
 end
 
@@ -188,15 +192,11 @@ function defineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tup
 end
 
 function defineMethod!(ocp::OCP, OCPForm::OCPFormulation)
-    if !(OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]) # Midpoint Collocation?
-        error("$(OCPForm.IntegrationScheme) is not implemented")
-    else
-        if OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
-            ocp.s.TrajectoryMethod == :Collocation
-        elseif OCPForm.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
-            ocp.s.TrajectoryMethod == :SingleShooting
-        end
-    end 
+    if OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+        ocp.s.TrajectoryMethod = :Collocation
+    elseif OCPForm.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
+        ocp.s.TrajectoryMethod = :SingleShooting
+    end
 end 
 
 
@@ -209,65 +209,115 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     defineMethod!(ocp, OCPForm)
     ## TODO Write the Lower and upper bound
     ocp.s.states.pts = ocp.s.control.pts = OCPForm.Np
-    ocp.p.x = @variable(OCPForm.mdl, ocp.b.XL[i] <= x[j in 1:ocp.s.states.pts, i in 1:ocp.s.states.num] <= ocp.b.XU[i])
-    ocp.p.u = @variable(OCPForm.mdl, ocp.b.CL[i] <= u[j in 1:ocp.s.control.pts, i in 1:ocp.s.control.num] <= ocp.b.CU[i])
-    ## fix the initial states
-    
-    if !ocp.s.X0slack
-        for st = 1:1:ocp.s.states.num
-            if !isnan(ocp.b.X0[st]) fix(ocp.p.x[1, st], ocp.b.X0[st]; force = true) end
+    if ocp.s.TrajectoryMethod == :Collocation
+        ocp.p.x = @variable(OCPForm.mdl, ocp.b.XL[i] <= x[j in 1:ocp.s.states.pts, i in 1:ocp.s.states.num] <= ocp.b.XU[i])
+        ocp.p.u = @variable(OCPForm.mdl, ocp.b.CL[i] <= u[j in 1:ocp.s.control.pts, i in 1:ocp.s.control.num] <= ocp.b.CU[i])
+        ## fix the initial states
+        
+        if !ocp.s.X0slack
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.X0[st]) fix(ocp.p.x[1, st], ocp.b.X0[st]; force = true) end
+            end
+        else
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.X0[st])
+                    if !isnan(ocp.b.X0_tol[st])
+                        @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= ocp.p.x[1, st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
+                    else
+                        @constraint(OCPForm.mdl, ocp.p.x[1, st] == ocp.b.X0[st])
+                    end
+                end
+            end
         end
-    else
-        for st = 1:1:ocp.s.states.num
-            if !isnan(ocp.b.X0[st])
-                if !isnan(ocp.b.X0_tol[st])
-                    @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= ocp.p.x[1, st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
-                else
-                    @constraint(OCPForm.mdl, ocp.p.x[1, st] == ocp.b.X0[st])
+        
+        if !ocp.s.XFslack
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.XF[st]) fix(ocp.p.x[end, st], ocp.b.XF[st]; force = true) end
+            end
+        else
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.XF[st])
+                    if !isnan(ocp.b.XF_tol[st])
+                        @constraint(OCPForm.mdl, ocp.b.XF[st] - ocp.b.XF_tol[st] <= ocp.p.x[end, st] <= ocp.b.XF[st] + ocp.b.XF_tol[st])
+                    else
+                        @constraint(OCPForm.mdl, ocp.p.x[end, st] == ocp.b.XF[st])
+                    end
+                end
+            end
+        end
+        
+        
+        
+        
+        # Dynamical Constraints
+        δx = Matrix{Any}(undef, ocp.s.states.pts, ocp.s.states.num)
+        for j in 1:ocp.s.states.pts
+            δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+        end
+        dynCon = Matrix{Any}(undef, ocp.s.states.pts - 1, ocp.s.states.num)
+        if OCPForm.IntegrationScheme == :bkwEuler
+            for k in 1:ocp.s.states.num
+                for i in 1:ocp.s.states.pts - 1
+                    dynCon[i, k] = @constraint(OCPForm.mdl, ocp.p.x[i + 1, k]- ocp.p.x[i, k] == δx[i + 1, k] * OCPForm.TInt[i])
+                end
+            end
+        elseif OCPForm.IntegrationScheme == :trapezoidal
+            for k in 1:ocp.s.states.num
+                # for i in 1:ocp.s.states.pts - 1
+                    dynCon[:, k] = @constraint(OCPForm.mdl, [i in 1:ocp.s.states.pts - 1], ocp.p.x[i + 1, k]- ocp.p.x[i, k] == (δx[i + 1, k] + δx[i, k]) * OCPForm.TInt[i] / 2)
+                # end
+            end
+        end
+
+    elseif ocp.s.TrajectoryMethod == :SingleShooting
+        ocp.p.u = @variable(OCPForm.mdl, ocp.b.CL[i] <= u[j in 1:ocp.s.control.pts, i in 1:ocp.s.control.num] <= ocp.b.CU[i])
+        ocp.p.x0 = @variable(OCPForm.mdl, ocp.b.XL[i] <= x0[i in 1:ocp.s.states.num] <= ocp.b.XU[i])
+        
+        if !ocp.s.X0slack
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.X0[st]) fix(ocp.p.x0[st], ocp.b.X0[st]; force = true) end
+            end
+        else
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.X0[st])
+                    if !isnan(ocp.b.X0_tol[st])
+                        @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= ocp.p.x0[st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
+                    else
+                        @constraint(OCPForm.mdl, ocp.p.x0[st] == ocp.b.X0[st])
+                    end
+                end
+            end
+        end
+        
+        ## Dynamical constraint
+        ocp.p.x = Matrix{AffExpr}(undef, ocp.s.states.pts, ocp.s.states.num)
+        δx = Matrix{Any}(undef, ocp.s.states.pts - 1, ocp.s.states.num)
+        for j in 1:ocp.s.states.pts - 1
+            if j == 1
+                ocp.p.x[j, :] = @expression(OCPForm.mdl, 1.0 * ocp.p.x0)
+            end
+            if OCPForm.IntegrationScheme == :RK1
+                δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+            end
+            ocp.p.x[j + 1, :] = @expression(OCPForm.mdl, δx[j, :] .* OCPForm.TInt[j] .+ ocp.p.x[j, :])
+        end
+        
+        if !ocp.s.XFslack
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.XF[st]) @constraint(OCPForm.mdl, ocp.p.x[end, st] == ocp.b.XF[st]) end
+            end
+        else
+            for st = 1:1:ocp.s.states.num
+                if !isnan(ocp.b.XF[st])
+                    if !isnan(ocp.b.XF_tol[st])
+                        @constraint(OCPForm.mdl, ocp.b.XF[st] - ocp.b.XF_tol[st] <= ocp.p.x[end, st] <= ocp.b.XF[st] + ocp.b.XF_tol[st])
+                    else
+                        @constraint(OCPForm.mdl, ocp.p.x[end, st] == ocp.b.XF[st])
+                    end
                 end
             end
         end
     end
-    
-    if !ocp.s.XFslack
-        for st = 1:1:ocp.s.states.num
-            if !isnan(ocp.b.XF[st]) fix(ocp.p.x[end, st], ocp.b.XF[st]; force = true) end
-        end
-    else
-        for st = 1:1:ocp.s.states.num
-            if !isnan(ocp.b.XF[st])
-                if !isnan(ocp.b.XF_tol[st])
-                    @constraint(OCPForm.mdl, ocp.b.XF[st] - ocp.b.XF_tol[st] <= ocp.p.x[end, st] <= ocp.b.XF[st] + ocp.b.XF_tol[st])
-                else
-                    @constraint(OCPForm.mdl, ocp.p.x[end, st] == ocp.b.XF[st])
-                end
-            end
-        end
-    end
-    
-    
-    
-    
-    # Dynamical Constraints
-    δx = Matrix{Any}(undef, ocp.s.states.pts, ocp.s.states.num)
-    for j in 1:ocp.s.states.pts
-        δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-    end
-    dynCon = Matrix{Any}(undef, ocp.s.states.pts - 1, ocp.s.states.num)
-    if OCPForm.IntegrationScheme == :bkwEuler
-        for k in 1:ocp.s.states.num
-            for i in 1:ocp.s.states.pts - 1
-                dynCon[i, k] = @constraint(OCPForm.mdl, ocp.p.x[i + 1, k]- ocp.p.x[i, k] == δx[i + 1, k] * OCPForm.TInt[i])
-            end
-        end
-    elseif OCPForm.IntegrationScheme == :trapezoidal
-        for k in 1:ocp.s.states.num
-            # for i in 1:ocp.s.states.pts - 1
-                dynCon[:, k] = @constraint(OCPForm.mdl, [i in 1:ocp.s.states.pts - 1], ocp.p.x[i + 1, k]- ocp.p.x[i, k] == (δx[i + 1, k] + δx[i, k]) * OCPForm.TInt[i] / 2)
-            # end
-        end
-    end
-    
     
     # Inner States Constraints
     for j in 1:ocp.s.states.pts 

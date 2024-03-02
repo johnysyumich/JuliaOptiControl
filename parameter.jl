@@ -1,5 +1,10 @@
 # define model parameters
 
+par = [-4.8543    1.4376    1.2205    0.1556   -0.0023   41.3705]
+mu0 = 0.8
+B= par[1] / mu0; C= par[2]; D = mu0 * par[3]; E=par[4];
+
+
 PCX1 = 1.18358               #Shape factor Cfx for longitudinal force
 PDX1 = 1.04493              #Longitudinal friction Mux at Fznom
 PDX2 = -0.0966588            #Variation of friction Mux with load

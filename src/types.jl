@@ -92,6 +92,7 @@ end
     x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
     tV::Any                                     = Any                               # Time point
+    x0::Vector{VariableRef}                     = Vector{VariableRef}(undef,0)      # Used for register initial state in single shooting method (Not used in collocation method)
 end
 
 @with_kw mutable struct OCPResults{ T <: Number }
