@@ -30,7 +30,7 @@ _Ipopt_defaults = (
     "max_iter" => 1000,
     "warm_start_init_point" => "no",
     "fixed_variable_treatment" => "relax_bounds",
-    "max_cpu_time" => 10,
+    "max_cpu_time" => 10.0,
     "print_level" => 0
     )
 
@@ -70,7 +70,7 @@ end
     control::Control                            = Control()                         # Control structure in OCPSetting
     solver::Solver                              = Solver()                          # Solver structure in OCPSetting
     InternalLogging::Bool                       = true                              # Bool for logging data internally
-    TrajMethod::Symbol                          = :Collocation                      # Symbol for using Collocation / Single Shooting
+    TrajectoryMethod::Symbol                    = :Collocation                      # Symbol for using Collocation / Single Shooting
     X0slack::Bool                               = false                             # Boolean for using tolerance on initial states
     XFslack::Bool                               = false                             # Boolean for using tolerance on final states
 end
@@ -91,14 +91,17 @@ end
 @with_kw mutable struct OCPParameter{ T <: Number }
     x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
+    tV::Any                                     = Any                               # Time point
 end
 
 @with_kw mutable struct OCPResults{ T <: Number }
     X::Matrix{Float64}                          = Matrix{Float64}(undef,0,0)        # State variable value
     U::Matrix{Float64}                          = Matrix{Float64}(undef,0,0)        # Control variable value
     Tst::Vector{Float64}                        = Vector{Float64}()                 # Time value
+    dt::Vector{Float64}                         = Vector{Float64}()                 # Time Interval Value
     Status::Symbol                              = :InFeasible                       # Status symbol: :Infeasible, :UserLimit, :Optimal
     IterNum::Int64                              = 0                                 # Iteration number from Solver
+    EvalNum::Int64                              = 0                                 # Evaluation number from Solver
     TerminalStatus::MOI.TerminationStatusCode   = MOI.OTHER_ERROR                   # Math operation interface termination status
     TSolve::Float64                             = 0.0                               # Solve time
     Objval::Float64                             = 0.0                               # objective value

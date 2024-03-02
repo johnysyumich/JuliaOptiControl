@@ -85,13 +85,6 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
     end
 
 
-    if haskey(kw, :TrajMethod)
-        TrajectoryMethod = get(kw, :TrajMethod, 0)
-        if TrajectoryMethod ∈ [:SingleShooting, :Collocation]
-            ocp.s.TrajMethod = TrajectoryMethod
-        end
-    end
-
     if haskey(kw, :IntegrationScheme)
         IntegrationScheme = get(kw, :IntegrationScheme, 0)
         if IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
@@ -194,6 +187,17 @@ function defineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tup
     return nothing
 end
 
+function defineMethod!(ocp::OCP, OCPForm::OCPFormulation)
+    if !(OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]) # Midpoint Collocation?
+        error("$(OCPForm.IntegrationScheme) is not implemented")
+    else
+        if OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
+            ocp.s.TrajectoryMethod == :Collocation
+        elseif OCPForm.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
+            ocp.s.TrajectoryMethod == :SingleShooting
+        end
+    end 
+end 
 
 
 
@@ -202,6 +206,7 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     ## TODO Configure the model setting
     defineSolver!(OCPForm, ocp.s.solver.name, ocp.s.solver.settings)
     ## Currently only collocation.
+    defineMethod!(ocp, OCPForm)
     ## TODO Write the Lower and upper bound
     ocp.s.states.pts = ocp.s.control.pts = OCPForm.Np
     ocp.p.x = @variable(OCPForm.mdl, ocp.b.XL[i] <= x[j in 1:ocp.s.states.pts, i in 1:ocp.s.states.num] <= ocp.b.XU[i])
@@ -257,20 +262,21 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
         end
     elseif OCPForm.IntegrationScheme == :trapezoidal
         for k in 1:ocp.s.states.num
-            for i in 1:ocp.s.states.pts - 1
-                dynCon[i, k] = @constraint(OCPForm.mdl, ocp.p.x[i + 1, k]- ocp.p.x[i, k] == 0.5 * (δx[i + 1, k] + δx[i, k]) * OCPForm.TInt[i])
-            end
+            # for i in 1:ocp.s.states.pts - 1
+                dynCon[:, k] = @constraint(OCPForm.mdl, [i in 1:ocp.s.states.pts - 1], ocp.p.x[i + 1, k]- ocp.p.x[i, k] == (δx[i + 1, k] + δx[i, k]) * OCPForm.TInt[i] / 2)
+            # end
         end
     end
     
     
-    ## Inner States Constraints
+    # Inner States Constraints
     for j in 1:ocp.s.states.pts 
         if isassigned(OCPForm.cons, j)
             @constraints(OCPForm.mdl, begin OCPForm.cons[j](ocp.p.x[j, :], ocp.p.u[j, :]) >= 0 end)
         end
     end
 
+    ocp.p.tV = [0.0; cumsum(OCPForm.TInt)]
     ocp.f = OCPForm
     return nothing
 
