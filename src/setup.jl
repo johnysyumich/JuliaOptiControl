@@ -295,15 +295,46 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
         
         
         ## Dynamical constraint
-        ocp.p.x = Matrix{AffExpr}(undef, ocp.s.states.pts, ocp.s.states.num)
+        ocp.p.x = Matrix{NonlinearExpr}(undef, ocp.s.states.pts, ocp.s.states.num)
         δx = Matrix{Any}(undef, ocp.s.states.pts - 1, ocp.s.states.num)
         for j in 1:ocp.s.states.pts - 1
             if j == 1
                 ocp.p.x[j, :] = @expression(OCPForm.mdl, 1.0 * ocp.p.xvar[j, :])
             end
-            if OCPForm.IntegrationScheme == :RK1
+
+            ### RK1 Integration
+            if OCPForm.IntegrationScheme == :RK1 
                 δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+
+            elseif OCPForm.IntegrationScheme == :RK2             ## RK2 Integration
+                k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+                xk2 = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ OCPForm.TInt[j] .* k1 )
+                k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :]))
+                δx[j, :] = @expression(OCPForm.mdl, (k1 + k2) /2 * OCPForm.TInt[j])
+
+
+            elseif OCPForm.IntegrationScheme == :RK3             ## RK3 Integration
+                k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+                xk2 = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ OCPForm.TInt[j] / 2 .* k1 )
+                k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :]))
+                xk3 = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ OCPForm.TInt[j]  .* k2 ) 
+                k3 = @expression(OCPForm.mdl, OCPForm.dx[j](xk3, ocp.p.u[j, :]))
+                δx[j, :] = @expression(OCPForm.mdl, (k1 + 4 * k2 + k3) /6 * OCPForm.TInt[j])
+
+
+            elseif OCPForm.IntegrationScheme == :RK4             ## RK4 Integration
+                k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
+                xk2 = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ OCPForm.TInt[j] / 2 .* k1 )
+                k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :]))
+                xk3 = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ OCPForm.TInt[j] / 2 .* k2 ) 
+                k3 = @expression(OCPForm.mdl, OCPForm.dx[j](xk3, ocp.p.u[j, :]))
+                xk4 = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ OCPForm.TInt[j] .* k3 ) 
+                k4 = @expression(OCPForm.mdl, OCPForm.dx[j](xk4, ocp.p.u[j, :]))
+                δx[j, :] = @expression(OCPForm.mdl, (k1 + 2 * k2 + 2 * k3 + k4) /6 * OCPForm.TInt[j])
             end
+
+            
+
             if j + 1 ∈ VariablePoint
                 VariableIdx = findfirst(val->val == j+1, VariablePoint)
                 ocp.p.x[j + 1, :] = @expression(OCPForm.mdl, 1.0 * ocp.p.xvar[VariableIdx, :])

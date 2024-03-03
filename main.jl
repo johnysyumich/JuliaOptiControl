@@ -10,7 +10,7 @@ CU=[1.9, 6.2]
 ocp = defineOCP(numStates=8,numControls=2,X0=[1.8, 0., 0.0, 0.0, pi/2, 0.0, 15., 0.],XF=[NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], XL=XL, XU=XU, CL=CL,CU=CU);
 defineStates!(ocp, [:x,:y,:v,:r,:psi,:sa,:ux,:ax])
 defineControls!(ocp, [:sr, :jx])
-OCPForm = ConfigurePredefined(ocp; (:Np=>31), (:tfDV => true), (:IntegrationScheme=>:RK1), (:dx => ThreeDOFBicycle_expr))
+OCPForm = ConfigurePredefined(ocp; (:Np=>61), (:tfDV => true), (:IntegrationScheme=>:RK1), (:dx => ThreeDOFBicycle_expr))
 OCPdef!(ocp, OCPForm)
 # CheckOCPFormulation(ocp, OCPForm)
 # ## TODO Configure the model setting
@@ -60,17 +60,17 @@ lsm = 4.66 #to leave 2m gap between the tip of the vehicle and the behind of the
 ssm = 3.3 #to move the vehicle to the center of the left lane.
 
 obs_ind = 1
-# obs_con1 = @constraint(ocp.f.mdl, [i=1:ocp.s.states.pts-1], 1 <= ((x[(i+1)]-timeSeq[i+1]*obs_info[obs_ind, 5]-obs_info[obs_ind, 1])^2)/((obs_info[obs_ind, 3]+ssm)^2) + ((y[(i+1)]-timeSeq[i+1]*obs_info[obs_ind, 6]-obs_info[obs_ind, 2])^2)/((obs_info[obs_ind, 4]+lsm)^2));
+obs_con1 = @constraint(ocp.f.mdl, [i=1:ocp.s.states.pts-1], 1 <= ((x[(i+1)]-timeSeq[i+1]*obs_info[obs_ind, 5]-obs_info[obs_ind, 1])^2)/((obs_info[obs_ind, 3]+ssm)^2) + ((y[(i+1)]-timeSeq[i+1]*obs_info[obs_ind, 6]-obs_info[obs_ind, 2])^2)/((obs_info[obs_ind, 4]+lsm)^2));
 a = 1
 
 
 # obj = @expression(ocp.f.mdl,  sum((5 * ((x[j] + x[j - 1]) / 2  - 1.8)^2 + 10 * (v[j]/2 + v[j-1]/2) ^2 +  10 * (sr[j]/2 + sr[j-1]/2)^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
 
-# obj = @expression(ocp.f.mdl,  sum((5 * (x1[j] + 1.8)^2 + 10 * v[j]^2 +  10 * sr[j]^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
+obj = @expression(ocp.f.mdl,  sum((5 * (x[j] + 1.8)^2 + 10 * v[j]^2 +  10 * sr[j]^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
 a = 1
-# @objective(ocp.f.mdl, Min,  obj + ocp.f.tf + (y[end] - 200)^2)
+@objective(ocp.f.mdl, Min,  obj + ocp.f.tf + (y[end] - 200)^2)
 # a= 1
-# @time OptSolve!(ocp)
+@time OptSolve!(ocp)
 # @time OptSolve!(ocp)
 # @time OptSolve!(ocp)
 # @time OptSolve!(ocp)

@@ -71,7 +71,7 @@ end
     solver::Solver                              = Solver()                          # Solver structure in OCPSetting
     InternalLogging::Bool                       = true                              # Bool for logging data internally
     TrajectoryMethod::Symbol                    = :Collocation                      # Symbol for using Collocation / Single Shooting
-    MultipleShootingInterval::Int64             = 2                                 # Interval to setup new variable 3 here means 1 variable 2 expressions
+    MultipleShootingInterval::Int64             = 1                                 # Interval to setup new variable 3 here means 1 variable 2 expressions
     X0slack::Bool                               = false                             # Boolean for using tolerance on initial states
     XFslack::Bool                               = false                             # Boolean for using tolerance on final states
 end
