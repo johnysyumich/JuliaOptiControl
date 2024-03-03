@@ -71,6 +71,7 @@ end
     solver::Solver                              = Solver()                          # Solver structure in OCPSetting
     InternalLogging::Bool                       = true                              # Bool for logging data internally
     TrajectoryMethod::Symbol                    = :Collocation                      # Symbol for using Collocation / Single Shooting
+    MultipleShootingInterval::Int64             = 2                                 # Interval to setup new variable 3 here means 1 variable 2 expressions
     X0slack::Bool                               = false                             # Boolean for using tolerance on initial states
     XFslack::Bool                               = false                             # Boolean for using tolerance on final states
 end
@@ -92,7 +93,8 @@ end
     x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
     tV::Any                                     = Any                               # Time point
-    x0::Vector{VariableRef}                     = Vector{VariableRef}(undef,0)      # Used for register initial state in single shooting method (Not used in collocation method)
+    xvar::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
+    δx::Matrix{Any}                             = Matrix{Any}(undef,0,0)            # Place Holder for derivatives
 end
 
 @with_kw mutable struct OCPResults{ T <: Number }

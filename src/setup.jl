@@ -61,7 +61,7 @@ end
 function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
     # all inputs here: tfDV, tf, Np, Integration Scheme
     # Integration scheme: bkwEuler, trapezoidal
-    # Trajectory methods: SingleShooting Collocation
+    # Trajectory methods: MultipleShooting Collocation
     OCPForm = OCPFormulation()
     OCPForm.mdl = JuMP.Model()
     set_silent(OCPForm.mdl)
@@ -195,7 +195,7 @@ function defineMethod!(ocp::OCP, OCPForm::OCPFormulation)
     if OCPForm.IntegrationScheme ∈ [:bkwEuler, :trapezoidal]
         ocp.s.TrajectoryMethod = :Collocation
     elseif OCPForm.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
-        ocp.s.TrajectoryMethod = :SingleShooting
+        ocp.s.TrajectoryMethod = :MultipleShooting
     end
 end 
 
@@ -268,39 +268,64 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
                 # end
             end
         end
+        ocp.p.δx = δx
 
-    elseif ocp.s.TrajectoryMethod == :SingleShooting
+    elseif ocp.s.TrajectoryMethod == :MultipleShooting
         ocp.p.u = @variable(OCPForm.mdl, ocp.b.CL[i] <= u[j in 1:ocp.s.control.pts, i in 1:ocp.s.control.num] <= ocp.b.CU[i])
-        ocp.p.x0 = @variable(OCPForm.mdl, ocp.b.XL[i] <= x0[i in 1:ocp.s.states.num] <= ocp.b.XU[i])
+        VariablePoint = 1:ocp.s.MultipleShootingInterval:OCPForm.Np
+        NumberofVariable = length(VariablePoint)
+        ocp.p.xvar = @variable(OCPForm.mdl, ocp.b.XL[i] <= xvar[j in 1:NumberofVariable, i in 1:ocp.s.states.num] <= ocp.b.XU[i])
         
         if !ocp.s.X0slack
             for st = 1:1:ocp.s.states.num
-                if !isnan(ocp.b.X0[st]) fix(ocp.p.x0[st], ocp.b.X0[st]; force = true) end
+                if !isnan(ocp.b.X0[st]) fix(ocp.p.xvar[1, st], ocp.b.X0[st]; force = true) end
             end
         else
             for st = 1:1:ocp.s.states.num
                 if !isnan(ocp.b.X0[st])
                     if !isnan(ocp.b.X0_tol[st])
-                        @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= ocp.p.x0[st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
+                        @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= ocp.p.xvar[1, st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
                     else
-                        @constraint(OCPForm.mdl, ocp.p.x0[st] == ocp.b.X0[st])
+                        @constraint(OCPForm.mdl, ocp.p.xvar[1, st] == ocp.b.X0[st])
                     end
                 end
             end
         end
+        
+        
         
         ## Dynamical constraint
         ocp.p.x = Matrix{AffExpr}(undef, ocp.s.states.pts, ocp.s.states.num)
         δx = Matrix{Any}(undef, ocp.s.states.pts - 1, ocp.s.states.num)
         for j in 1:ocp.s.states.pts - 1
             if j == 1
-                ocp.p.x[j, :] = @expression(OCPForm.mdl, 1.0 * ocp.p.x0)
+                ocp.p.x[j, :] = @expression(OCPForm.mdl, 1.0 * ocp.p.xvar[j, :])
             end
             if OCPForm.IntegrationScheme == :RK1
                 δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
             end
-            ocp.p.x[j + 1, :] = @expression(OCPForm.mdl, δx[j, :] .* OCPForm.TInt[j] .+ ocp.p.x[j, :])
+            if j + 1 ∈ VariablePoint
+                VariableIdx = findfirst(val->val == j+1, VariablePoint)
+                ocp.p.x[j + 1, :] = @expression(OCPForm.mdl, 1.0 * ocp.p.xvar[VariableIdx, :])
+                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+            else
+                ocp.p.x[j + 1, :] = @expression(OCPForm.mdl, ocp.p.x[j, :] .+ δx[j, :] .* OCPForm.TInt[j] )
+            end
         end
+        ocp.p.δx = δx
+        ## Variable Constraints TODO fix here, it is not obeying the constraints
+        for j in ocp.s.states.pts
+            for st in ocp.s.states.num
+                if !isnan(ocp.b.XL[st])
+                    @constraint(OCPForm.mdl, ocp.b.XL[st] <= ocp.p.x[j, st])
+                end
+                if !isnan(ocp.b.XU[st])
+                    @constraint(OCPForm.mdl, ocp.b.XU[st] >= ocp.p.x[j, st])
+                end
+            end
+        end
+        
+        
         
         if !ocp.s.XFslack
             for st = 1:1:ocp.s.states.num
@@ -317,6 +342,9 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
                 end
             end
         end
+                
+
+
     end
     
     # Inner States Constraints
