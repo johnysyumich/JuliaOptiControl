@@ -10,6 +10,27 @@ function OptSolve!(ocp::OCP)
     return nothing
 end
 
+
+
+function ExprIntegral(ocp::OCP)
+    cost = @expression(ocp.f.mdl, 0)
+    for j in 2:ocp.f.Np
+        if isassigned(ocp.f.expr, j)
+            if ocp.f.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
+                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], ocp.p.u[j - 1, :]) * ocp.f.TInt[j - 1])
+            elseif ocp.f.IntegrationScheme == :trapezoidal
+                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], (ocp.p.u[j - 1, :] + ocp.p.u[j, :]) / 2) * ocp.f.TInt[j - 1])
+            elseif ocp.f.IntegrationScheme == :bkwEuler
+                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j - 1, :], ocp.p.u[j - 1, :]) * ocp.f.TInt[j - 1])
+            end
+        end
+    end
+    return cost
+end
+
+
+
+
 function RetrieveSolveStatus(status::MOI.TerminationStatusCode)
     SolvingStatus = [:Optimal, :UserLimit, :InFeasible]
     OptimalList = [MOI.OPTIMAL, MOI.LOCALLY_SOLVED, MOI.ALMOST_OPTIMAL]
