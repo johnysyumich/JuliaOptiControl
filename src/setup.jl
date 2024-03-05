@@ -182,11 +182,15 @@ end
 
 
 function defineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tuple)
-    if SolverName == :Ipopt
-        set_optimizer(OCPForm.mdl, Ipopt.Optimizer)
-        set_attributes(OCPForm.mdl, Options...)
+    if solver_name(OCPForm.mdl) == "No optimizer attached."
+        if SolverName == :Ipopt
+            set_optimizer(OCPForm.mdl, Ipopt.Optimizer)
+            set_attributes(OCPForm.mdl, Options...)
+        else
+            error("Solver $SolverName is not implemented")
+        end
     else
-        error("Solver $SolverName is not implemented")
+        @warn "$(solver_name(OCPForm.mdl)) is set, can not change to $SolverName"
     end
     return nothing
 end
@@ -204,7 +208,9 @@ end
 function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     CheckOCPFormulation(ocp, OCPForm)
     ## TODO Configure the model setting
-    defineSolver!(OCPForm, ocp.s.solver.name, ocp.s.solver.settings)
+    if solver_name(OCPForm.mdl) == "No optimizer attached."
+        defineSolver!(OCPForm, ocp.s.solver.name, ocp.s.solver.settings)
+    end
     ## Currently only collocation.
     defineMethod!(ocp, OCPForm)
     ## TODO Write the Lower and upper bound
