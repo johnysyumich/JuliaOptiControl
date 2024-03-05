@@ -126,15 +126,15 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
     if !haskey(kw, :dx)
         error("No dynamics here")
     else
-        OCPForm.dx = Vector{Any}(undef, OCPForm.Np)
+        OCPForm.dx = Vector{Any}(nothing, OCPForm.Np)
         OCPForm.dx[1:OCPForm.Np] .= get(kw, :dx, 0)
     end
-    OCPForm.cons = Vector{Any}(undef, OCPForm.Np)
+    OCPForm.cons = Vector{Any}(nothing, OCPForm.Np)
     if haskey(kw, :cons)
         OCPForm.cons .= get(kw, :cons, 0)
     end
 
-    OCPForm.expr = Vector{Any}(undef, OCPForm.Np)
+    OCPForm.expr = Vector{Any}(nothing, OCPForm.Np)
 
     if haskey(kw, :expr)
         OCPForm.expr .= get(kw, :expr, 0)
@@ -398,7 +398,7 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     
     # Inner States Constraints
     for j in 1:ocp.s.states.pts 
-        if isassigned(OCPForm.cons, j)
+        if !isnothing(OCPForm.cons[j])
             @constraints(OCPForm.mdl, begin OCPForm.cons[j](OCPForm.mdl[:x][j, :], OCPForm.mdl[:u][j, :]) >= 0 end)
         end
     end

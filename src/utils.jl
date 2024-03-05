@@ -15,7 +15,7 @@ end
 function ExprIntegral(ocp::OCP)
     cost = @expression(ocp.f.mdl, 0)
     for j in 2:ocp.f.Np
-        if isassigned(ocp.f.expr, j)
+        if !isnothing(ocp.f.expr[j])
             if ocp.f.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
                 cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], ocp.p.u[j - 1, :]) * ocp.f.TInt[j - 1])
             elseif ocp.f.IntegrationScheme == :trapezoidal
@@ -81,4 +81,44 @@ function ResultsToDataFrame(ocp::OCP)
         dfs[!, ocp.s.control.name[ctr]] = ocp.r.U[:,ctr]
     end
     return dfs
+end
+
+
+function CreateEmptyFormulation()::OCPFormulation
+    return OCPFormulation()
+end
+
+function DeleteElement(ConsExpr, index)
+    ConsExpr[index] .= nothing
+end
+
+
+function WarmStart(ocp::OCP)
+    flag = false
+    try get_attribute(ocp.f.mdl, "warm_start_init_point")
+      if get_attribute(ocp.f.mdl, "warm_start_init_point") == "yes"
+        flag = true
+      else
+        flag = false
+      end
+    catch
+      flag = false
+    end
+    if flag == true
+      set_start_value.(ocp.r.x, [ocp.b.X0'; ocp.r.X[2:end, :]])
+      set_start_value.(n.r.ocp.u, [ocp.r.U[2:end, :]; ocp.r.U[end, :]'])
+    end
+    return nothing
+end
+  
+
+function UpdateX0!(ocp::OCP, X0)
+    ocp.b.X0 = X0
+    for i = 1:1:size(ocp.s.states.num)
+        if ocp.f.IntegrationScheme ∈ [:bkwEyler, :trapezoidal]
+            fix(ocp.p.x[1, st], ocp.b.X0[st]; force = true)
+        else
+            fix(ocp.p.xvar[1, st], ocp.b.X0[st]; force = true)
+        end
+    end
 end
