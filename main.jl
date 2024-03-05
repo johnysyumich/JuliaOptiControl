@@ -10,7 +10,9 @@ CU=[1.9, 6.2]
 ocp = defineOCP(numStates=8,numControls=2,X0=[1.8, 0., 0.0, 0.0, pi/2, 0.0, 15., 0.],XF=[NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], XL=XL, XU=XU, CL=CL,CU=CU);
 defineStates!(ocp, [:x,:y,:v,:r,:psi,:sa,:ux,:ax])
 defineControls!(ocp, [:sr, :jx])
-OCPForm = ConfigurePredefined(ocp; (:Np=>61), (:tfDV => true), (:IntegrationScheme=>:bkwEuler), (:dx => ThreeDOFBicycle_expr), (:expr=>ThreeDOFBicycle_cost))
+# trapezoidal
+# bkwEuler
+OCPForm = ConfigurePredefined(ocp; (:Np=>61), (:tfDV => true), (:IntegrationScheme=>:trapezoidal), (:dx => ThreeDOFBicycle_expr), (:expr=>ThreeDOFBicycle_cost))
 user_options = ()
 OCPdef!(ocp, OCPForm)
 x = ocp.p.x[:, 1]; y = ocp.p.x[:, 2]; ux = ocp.p.x[:, 7]; sr = ocp.p.u[:, 1]; v = ocp.p.x[:, 3]
@@ -30,7 +32,7 @@ a = 1
 
 # obj = @expression(ocp.f.mdl,  sum((5 * ((x[j] + x[j - 1]) / 2  - 1.8)^2 + 10 * (v[j]/2 + v[j-1]/2) ^2 +  10 * (sr[j]/2 + sr[j-1]/2)^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
 
-obj = @expression(ocp.f.mdl,  sum((5 * (x[j] - 1.8)^2 + 10 * v[j]^2 +  10 * sr[j]^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
+obj = @expression(ocp.f.mdl,  sum((5 * (x[j] + 1.8)^2 + 10 * v[j]^2 +  10 * sr[j]^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
 a = 1
 @objective(ocp.f.mdl, Min,  obj + ocp.f.tf + (y[end] - 200)^2)
 # a= 1
