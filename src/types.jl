@@ -54,7 +54,7 @@ end
 @with_kw mutable struct OCPFormulation{ T <: Number }
     tfDV::Bool                                  = false                             # Determines whether tf is a design variable
     Np::Int64                                   = 0                                 # NckPoint 
-    IntegrationScheme::Symbol                   = :bkwEuler                         # Integration integrationScheme
+    IntegrationScheme::Vector{Symbol}           = Vector{Symbol}()                         # Integration integrationScheme
     tf::Any                                     = Any                               # Total time, type depend on the 
     tw::Vector{Float64}                         = Vector{Float64}()                 # Time weight
     TInt::Vector{Any}                           = Vector{Any}[]                     # Depends on terminal constraints (Nonlinear Expr) or fixed time horizon (Float64)
@@ -92,6 +92,10 @@ end
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
     tV::Any                                     = Any                               # Time point
     xvar::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
+    xvar1::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
+    xvar2::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
+    xvar3::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
+    xvar4::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
     δx::Matrix{Any}                             = Matrix{Any}(undef,0,0)            # Place Holder for derivatives
 end
 
