@@ -91,6 +91,7 @@ end
     x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
     tV::Any                                     = Any                               # Time point
+    xvar::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
     δx::Matrix{Any}                             = Matrix{Any}(undef,0,0)            # Place Holder for derivatives
 end
 

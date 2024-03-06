@@ -12,7 +12,7 @@ defineStates!(ocp, [:x,:y,:v,:r,:psi,:sa,:ux,:ax])
 defineControls!(ocp, [:sr, :jx])
 # trapezoidal
 # bkwEuler
-OCPForm = ConfigurePredefined(ocp; (:Np=>61), (:tfDV => true), (:IntegrationScheme=>:RK2), (:dx => ThreeDOFBicycle_expr), (:expr=>ThreeDOFBicycle_cost))
+OCPForm = ConfigurePredefined(ocp; (:Np=>31), (:tfDV => true),  (:IntegrationScheme=>:RK2), (:dx => ThreeDOFBicycle_expr), (:expr=>ThreeDOFBicycle_cost))
 user_options = ()
 OCPdef!(ocp, OCPForm)
 x = ocp.p.x[:, 1]; y = ocp.p.x[:, 2]; ux = ocp.p.x[:, 7]; sr = ocp.p.u[:, 1]; v = ocp.p.x[:, 3]
