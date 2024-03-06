@@ -62,7 +62,7 @@ function ValidateScheme(scheme)
     num = maximum(size(scheme))
     for i in 1:num
         if scheme[i] ∉ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]
-            return false
+            return false, i
         end
     end
     return true
@@ -124,10 +124,10 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
         end
     end
 
-    if OCPForm.tfDV == false && ValidateScheme(OCPForm.IntegrationScheme)
+    if OCPForm.tfDV == false
         OCPForm.tw = 1 / (OCPForm.Np - 1) .* ones(OCPForm.Np - 1)
         OCPForm.TInt = OCPForm.tf .*  OCPForm.tw
-    elseif OCPForm.tfDV == true && ValidateScheme(OCPForm.IntegrationScheme)
+    elseif OCPForm.tfDV == true
         OCPForm.tw = 1 / (OCPForm.Np - 1) .* ones(OCPForm.Np - 1)
         OCPForm.tf = @variable(OCPForm.mdl, ocp.b.tfMin <= tf <= ocp.b.tfMax)
         OCPForm.TInt = @expression(OCPForm.mdl, [idx = 1:OCPForm.Np - 1], OCPForm.tf * OCPForm.tw[idx])
@@ -139,6 +139,27 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
         OCPForm.dx = Vector{Any}(nothing, OCPForm.Np)
         OCPForm.dx[1:OCPForm.Np] .= get(kw, :dx, 0)
     end
+    if haskey(kw, :params)
+        params = get(kw, :params, 0)
+        if size(params, 1) == OCPForm.Np
+            OCPForm.params = Matrix{Any}(undef, size(params, 1), size(params, 2))
+            OCPForm.params[1:size(params, 1), 1:size(params, 2)] = params
+        else
+            if size(params, 2) == 1 && size(params, 1) != 1
+                OCPForm.params = repeat(params', OCPForm.Np)
+            elseif size(params, 1) == 1 && size(params, 2) != 1
+                OCPForm.params = repeat(params, OCPForm.Np)
+            elseif size(OCPForm.params, 1) == 1 && size(OCPForm.params, 1) == 1
+                OCPForm.params = repeat(params, OCPForm.Np)
+            else
+                error("Size of param ($(size(params, 1)) * $(size(params, 2)) is not expected)")
+            end
+        end
+    end
+    if size(OCPForm.params, 1) == 0 || size(OCPForm.params, 2) == 0
+        OCPForm.params = Matrix{Any}(undef, OCPForm.Np, 1)
+    end
+
     OCPForm.cons = Vector{Any}(nothing, OCPForm.Np)
     if haskey(kw, :cons)
         OCPForm.cons .= get(kw, :cons, 0)
@@ -182,9 +203,13 @@ function CheckOCPFormulation(ocp::OCP, OCPForm::OCPFormulation)
             end
         end
     end
+    ValidationInfo = ValidateScheme(OCPForm.IntegrationScheme)
+    if length(ValidationInfo) == 2 # Midpoint Collocation?
+        error("$(OCPForm.IntegrationScheme[ValidationInfo[2]]) is not implemented")
+    end
 
-    if !( ValidateScheme(OCPForm.IntegrationScheme)) # Midpoint Collocation?
-        error("$(OCPForm.IntegrationScheme) is not implemented")
+    if size(OCPForm.params, 1) != OCPForm.Np
+        error("Size [$(size(OCPForm.params, 1)), $(size(OCPForm.params, 2))] do not match number of points $(OCPForm.Np) ")
     end
 
     return nothing
@@ -268,156 +293,102 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
         end
     end
     
+    # Parameters
+    Nonparam = Any
+    if isassigned(OCPForm.params)
+        ocp.p.params = @variable(OCPForm.mdl, Params[i = 1:size(OCPForm.params, 1), j = 1:size(OCPForm.params, 2)] in Parameter(OCPForm.params[i, j]) )
+    end
+
+
+
+
+
     # Dynamical Constraints
     δx = Matrix{Any}(undef, ocp.s.states.pts, ocp.s.states.num)
 
-    col_count = 1
-    if ValidateScheme(OCPForm.IntegrationScheme)
-        # if OCPForm.IntegrationScheme[1] == :RK2
-        #     ocp.p.xvar1 = @variable(OCPForm.mdl, xvar1[j in 1:ocp.s.states.pts - 1, i in 1:ocp.s.states.num])
-        # end
+    ColumnCounter = 1
 
-        # if OCPForm.IntegrationScheme[1] == :RK3
-        #     ocp.p.xvar1 = @variable(OCPForm.mdl, xvar1[j in 1:ocp.s.states.pts - 1, i in 1:ocp.s.states.num])
-        #     ocp.p.xvar2 = @variable(OCPForm.mdl, xvar2[j in 1:ocp.s.states.pts - 1, i in 1:ocp.s.states.num])
-        # end
+    numXvar = CalXvar(OCPForm.IntegrationScheme)
+    if numXvar > 0
+        ocp.p.xvar = @variable(OCPForm.mdl, xvar[j in 1:numXvar, i in 1:ocp.s.states.num])
+    end
 
-        # if OCPForm.IntegrationScheme[1] == :RK4
-        #     ocp.p.xvar1 = @variable(OCPForm.mdl, xvar1[j in 1:ocp.s.states.pts - 1, i in 1:ocp.s.states.num])
-        #     ocp.p.xvar2 = @variable(OCPForm.mdl, xvar2[j in 1:ocp.s.states.pts - 1, i in 1:ocp.s.states.num])
-        #     ocp.p.xvar3 = @variable(OCPForm.mdl, xvar3[j in 1:ocp.s.states.pts - 1, i in 1:ocp.s.states.num])
-        # end
 
-        num_xvar = CalXvar(OCPForm.IntegrationScheme)
-        if num_xvar > 0
-            ocp.p.xvar = @variable(OCPForm.mdl, xvar[j in 1:num_xvar, i in 1:ocp.s.states.num])
+
+    for j in 1:ocp.s.states.pts - 1
+        if isassigned(OCPForm.params, j)
+            param = ocp.p.params[j, :]
+        else
+            param = Nonparam
+        end
+        if OCPForm.IntegrationScheme[j] == :RK2
+            xk1 = xvar[ColumnCounter, :]
+            ColumnCounter += 1
+            k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
+            k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :], param))
+            @constraint(OCPForm.mdl, [i = 1:ocp.s.states.num],  xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j])
+            δx[j, :] = @expression(OCPForm.mdl, k1 ./ 2 .+ k2 ./ 2)
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+        elseif OCPForm.IntegrationScheme[j] == :RK3
+            xk1 = xvar[ColumnCounter,:]
+            xk2 = xvar[ColumnCounter+1,:]
+            ColumnCounter += 2
+
+            k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
+            k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :], param))
+            k3 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :], param))
+            
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j]/2)
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk2[i] - ocp.p.x[j, i] == -k1[i] * OCPForm.TInt[j] + 2*k2[i] * OCPForm.TInt[j])
+
+            δx[j, :] = @expression(OCPForm.mdl, (k1 .+  4*k2 .+ k3) ./ 6 )
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+
+        elseif OCPForm.IntegrationScheme[j] == :RK4
+            xk1 = xvar[ColumnCounter,:]
+            xk2 = xvar[ColumnCounter+1,:]
+            xk3 = xvar[ColumnCounter+2,:]
+            ColumnCounter += 3
+
+            k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
+            k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :], param))
+            k3 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :], param))
+            k4 = @expression(OCPForm.mdl, OCPForm.dx[j](xk3, ocp.p.u[j, :], param))
+            
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j]/2)
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk2[i] - ocp.p.x[j, i] == k2[i] * OCPForm.TInt[j]/2)
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk3[i] - ocp.p.x[j, i] == k3[i] * OCPForm.TInt[j])
+
+            δx[j, :] = @expression(OCPForm.mdl, (k1 .+  2*k2 .+ 2*k3 .+ k4) ./ 6 )
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+
+        elseif OCPForm.IntegrationScheme[j] == :RK1
+            δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+
+        elseif OCPForm.IntegrationScheme[j] == :bkwEuler
+            δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :], param))
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+
+        elseif OCPForm.IntegrationScheme[j] == :trapezoidal
+            δx1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
+            δx2 = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :], param))
+            δx[j, :] = @expression(OCPForm.mdl, δx1 ./ 2 .+ δx2 ./ 2 )
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+
         end
 
-
-
-        for j in 1:ocp.s.states.pts - 1
-            if OCPForm.IntegrationScheme[j] == :RK2
-                xk1 = xvar[col_count,:]
-                col_count += 1
-                k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-                k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :]))
-                @constraint(OCPForm.mdl, [i = 1:ocp.s.states.num],  xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j])
-                δx[j, :] = @expression(OCPForm.mdl, k1 ./ 2 .+ k2 ./ 2)
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-            elseif OCPForm.IntegrationScheme[j] == :RK3
-                xk1 = xvar[col_count,:]
-                xk2 = xvar[col_count+1,:]
-                col_count += 2
-
-                k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-                k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :]))
-                k3 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :]))
-                
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j]/2)
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk2[i] - ocp.p.x[j, i] == -k1[i] * OCPForm.TInt[j] + 2*k2[i] * OCPForm.TInt[j])
-
-                δx[j, :] = @expression(OCPForm.mdl, (k1 .+  4*k2 .+ k3) ./ 6 )
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-            elseif OCPForm.IntegrationScheme[j] == :RK4
-                xk1 = xvar[col_count,:]
-                xk2 = xvar[col_count+1,:]
-                xk3 = xvar[col_count+2,:]
-                col_count += 3
-
-                k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-                k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :]))
-                k3 = @expression(OCPForm.mdl, OCPForm.dx[j](xk2, ocp.p.u[j, :]))
-                k4 = @expression(OCPForm.mdl, OCPForm.dx[j](xk3, ocp.p.u[j, :]))
-                
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j]/2)
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk2[i] - ocp.p.x[j, i] == k2[i] * OCPForm.TInt[j]/2)
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], xk3[i] - ocp.p.x[j, i] == k3[i] * OCPForm.TInt[j])
-
-                δx[j, :] = @expression(OCPForm.mdl, (k1 .+  2*k2 .+ 2*k3 .+ k4) ./ 6 )
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-            elseif OCPForm.IntegrationScheme[j] == :RK1
-                δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-            elseif OCPForm.IntegrationScheme[j] == :bkwEuler
-                δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :]))
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-            elseif OCPForm.IntegrationScheme[j] == :trapezoidal
-                δx1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-                δx2 = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :]))
-                δx[j, :] = @expression(OCPForm.mdl, δx1 ./ 2 .+ δx2 ./ 2 )
-                @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-            end
-
-            # if OCPForm.IntegrationScheme[1] == :bkwEuler
-            #     if j == 1
-            #         δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], OCPForm.mdl[:u][j, :]))
-            #     end
-            #     δx[j + 1, :] = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :]))
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j + 1, i] * OCPForm.TInt[j])
-
-            # elseif OCPForm.IntegrationScheme[1] == :trapezoidal
-            #     if j == 1
-            #         δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-            #     end
-            #     δx[j + 1, :] = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :]))
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] - δx[j + 1, i] * OCPForm.TInt[j]/2 - δx[j, i] * OCPForm.TInt[j]/2 == 0)
-
-            # ### RK1 Integration
-            # elseif OCPForm.IntegrationScheme[1] == :RK1 
-            #     δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-            # elseif OCPForm.IntegrationScheme[1] == :RK2             ## RK2 Integration
-            #     k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-            #     k2 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.xvar1[j, :], ocp.p.u[j, :]))
-            #     @constraint(OCPForm.mdl, [i = 1:ocp.s.states.num],  ocp.p.xvar1[j, i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j])
-            #     δx[j, :] = @expression(OCPForm.mdl, k1 ./ 2 .+ k2 ./ 2)
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
-
-
-            # elseif OCPForm.IntegrationScheme[1] == :RK3             ## RK3 Integration
-            #     k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-            #     k2 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.xvar1[j, :], ocp.p.u[j, :]))
-            #     k3 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.xvar2[j, :], ocp.p.u[j, :]))
-                
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.xvar1[j, i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j]/2)
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.xvar2[j, i] - ocp.p.x[j, i] == -k1[i] * OCPForm.TInt[j] + 2*k2[i] * OCPForm.TInt[j])
-
-            #     δx[j, :] = @expression(OCPForm.mdl, (k1 .+  4*k2 .+ k3) ./ 6 .* OCPForm.TInt[j])
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i])
-
-            # elseif OCPForm.IntegrationScheme[1] == :RK4             ## RK4 Integration
-                
-            #     k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :]))
-            #     k2 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.xvar1[j, :], ocp.p.u[j, :]))
-            #     k3 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.xvar2[j, :], ocp.p.u[j, :]))
-            #     k4 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.xvar3[j, :], ocp.p.u[j, :]))
-                
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.xvar1[j, i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j]/2)
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.xvar2[j, i] - ocp.p.x[j, i] == k2[i] * OCPForm.TInt[j]/2)
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.xvar3[j, i] - ocp.p.x[j, i] == k3[i] * OCPForm.TInt[j])
-
-            #     δx[j, :] = @expression(OCPForm.mdl, (k1 .+  2*k2 .+ 2*k3 .+ k4) ./ 6 .* OCPForm.TInt[j])
-            #     @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i])
-            # end
-
-        end
     end
 
     ocp.p.δx = δx
   
     
     # Inner States Constraints
-    for j in 1:ocp.s.states.pts 
-        if !isnothing(OCPForm.cons[j])
-            @constraints(OCPForm.mdl, begin OCPForm.cons[j](OCPForm.mdl[:x][j, :], OCPForm.mdl[:u][j, :]) >= 0 end)
-        end
-    end
+    # for j in 1:ocp.s.states.pts 
+    #     if !isnothing(OCPForm.cons[j])
+    #         @constraints(OCPForm.mdl, begin OCPForm.cons[j](OCPForm.mdl[:x][j, :], OCPForm.mdl[:u][j, :]) >= 0 end)
+    #     end
+    # end
 
     ocp.p.tV = [0.0; cumsum(OCPForm.TInt)]
     ocp.f = OCPForm

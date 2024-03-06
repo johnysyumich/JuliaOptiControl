@@ -62,7 +62,7 @@ end
     dx::Vector{Any}                             = Vector{Any}()                     # Dynamics function handle here
     cons::Vector{Any}                           = Vector{Any}()                     # Constraints function handle here
     expr::Vector{Any}                           = Vector{Any}()                     # Expression function handle here
-
+    params::Matrix{Any}                         = Matrix{Any}(undef, 0, 0)                     # Place Holder in case user uses 
 end
 
 @with_kw mutable struct OCPSetting{ T <: Number }
@@ -90,12 +90,9 @@ end
 @with_kw mutable struct OCPParameter{ T <: Number }
     x::Matrix{Any}                              = Matrix{Any}(undef,0,0)            # Holder for JuMP nonlinear variable(collocation); nonlinear expression (single shooting)
     u::Matrix{VariableRef}                      = Matrix{VariableRef}(undef,0,0)    # Control inputs are always variable references
+    params::Matrix{VariableRef}                 = Matrix{VariableRef}(undef, 0, 0)  # paramters used in dynamics function
     tV::Any                                     = Any                               # Time point
     xvar::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
-    xvar1::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
-    xvar2::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
-    xvar3::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
-    xvar4::Matrix{VariableRef}                   = Matrix{VariableRef}(undef,0, 0)   # Used for register variable states in multiple shooting method (Not used in collocation method)
     δx::Matrix{Any}                             = Matrix{Any}(undef,0,0)            # Place Holder for derivatives
 end
 
