@@ -384,11 +384,17 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
   
     
     # Inner States Constraints
-    # for j in 1:ocp.s.states.pts 
-    #     if !isnothing(OCPForm.cons[j])
-    #         @constraints(OCPForm.mdl, begin OCPForm.cons[j](OCPForm.mdl[:x][j, :], OCPForm.mdl[:u][j, :]) >= 0 end)
-    #     end
-    # end
+    for j in 1:ocp.s.states.pts 
+        if isassigned(OCPForm.params, j)
+            param = ocp.p.params[j, :]
+        else
+            param = Nonparam
+        end
+
+        if !isnothing(OCPForm.cons[j])
+            @constraints(OCPForm.mdl, begin OCPForm.cons[j](OCPForm.mdl[:x][j, :], OCPForm.mdl[:u][j, :], param) >= 0 end)
+        end
+    end
 
     ocp.p.tV = [0.0; cumsum(OCPForm.TInt)]
     ocp.f = OCPForm

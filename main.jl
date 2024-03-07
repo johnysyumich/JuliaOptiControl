@@ -18,9 +18,9 @@ OCPForm = ConfigurePredefined(ocp; (:Np=>25), (:tfDV => true),  (:IntegrationSch
 user_options = ()
 
 # scheme = [repeat([:RK4], 5); repeat([:RK3], 5); repeat([:RK2], 5);repeat([:RK1], 5);repeat([:bkwEuler], 5);repeat([:trapezoidal], 5);]
-scheme = [repeat([:RK4], 3); repeat([:bkwEuler], 27)]
+# scheme = [repeat([:RK4], 3); repeat([:bkwEuler], 27)]
 # scheme =  repeat([:bkwEuler], 30)
-OCPForm.IntegrationScheme = scheme
+# OCPForm.IntegrationScheme = scheme
 
 
 OCPdef!(ocp, OCPForm)
@@ -33,6 +33,6 @@ ssm = 3.3 #to move the vehicle to the center of the left lane.
 obs_ind = 1
 obs_con1 = @constraint(ocp.f.mdl, [i=1:ocp.s.states.pts-1], 1 <= ((x[(i+1)]-timeSeq[i+1]*obs_info[obs_ind, 5]-obs_info[obs_ind, 1])^2)/((obs_info[obs_ind, 3]+ssm)^2) + ((y[(i+1)]-timeSeq[i+1]*obs_info[obs_ind, 6]-obs_info[obs_ind, 2])^2)/((obs_info[obs_ind, 4]+lsm)^2));
 obj = @expression(ocp.f.mdl,  sum((5 * (x[j] - 1.8)^2 + 10 * v[j]^2 +  10 * sr[j]^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
-@objective(ocp.f.mdl, Min,  obj + ocp.f.tf + (y[end] - 200)^2)
+@objective(ocp.f.mdl, Min,  obj + ocp.f.tf + (y[end] - 200)^2 + (x[end] - 1.8)^2)
 @time OptSolve!(ocp)
 plot(ocp.r.X[:, 1], ocp.r.X[:, 2])
