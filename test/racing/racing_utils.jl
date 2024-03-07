@@ -24,7 +24,7 @@ end
 
 function FindCenterLine(init_pos, center_line, lane_yaw) #init_pos = [x_s; y_s]'
     cline_begin_idx, ~ = FindClosestPoint(init_pos, center_line)
-    cline_end_idx = cline_begin_idx + 200#Int(ceil( 1.2*40.0 * 4.0 / 1.0 )   )
+    cline_end_idx = cline_begin_idx + 250#Int(ceil( 1.2*40.0 * 4.0 / 1.0 )   )
     mpc_track_info = zeros(cline_end_idx - cline_begin_idx + 1, 4 ) #x,y,yaw,length
     loop_num = size(center_line, 1)
     for mpc_track_info_idx = 1:1:size(mpc_track_info, 1)

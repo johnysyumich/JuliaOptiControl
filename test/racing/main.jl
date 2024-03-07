@@ -12,7 +12,7 @@ using Statistics
 
 
 
-function DefineOCP(cur_states, block_num, nCol)
+function DefineOCP(cur_states, block_num, nCol, T)
     println(pwd())
     mat = matread("./processed_ThunderHill_West.mat");
     global center_line = transpose(mat["fined_center_line"])
@@ -91,9 +91,13 @@ function DefineOCP(cur_states, block_num, nCol)
     ocp = defineOCP(numStates=8,numControls=2,X0=cur_states,XF=[NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], XL=XL, XU=XU, CL=CL,CU=CU);
     defineStates!(ocp, [:x,:y,:v,:r,:psi,:ux,:sa,:ax])
     defineControls!(ocp, [:sr, :jx])
-    OCPForm = ConfigurePredefined(ocp; (:Np=>nCol), (:tfDV => false), (:tf => 4.0), (:IntegrationScheme=>:bkwEuler), (:dx => LC500Model))
+    OCPForm = ConfigurePredefined(ocp; (:Np=>nCol), (:tfDV => false), (:tf => T), (:IntegrationScheme=>:bkwEuler), (:dx => LC500Model))
     # scheme = [repeat([:RK2], 2); repeat([:bkwEuler], nCol - 2)]
     # OCPForm.IntegrationScheme = scheme
+
+    # nCol1 = 8
+    # OCPForm.TInt = [0.1*ones(nCol1); ((T - 0.1*nCol1)/(nCol-nCol1-1))*ones(nCol-nCol1-1)]
+    # OCPForm.tw = OCPForm.TInt./T
 
     OCPdef!(ocp, OCPForm)
     set_attributes(ocp.f.mdl, user_options...)
@@ -126,7 +130,7 @@ function DefineOCP(cur_states, block_num, nCol)
     obj_goal = @expression(ocp.f.mdl, cost_para[1] + cost_para[2] * x[end] + cost_para[3] * y[end] + cost_para[4] * x[end]^2 + cost_para[5] * x[end] * y[end] + cost_para[6] * y[end]^2 + cost_para[7] * x[end]^3 + cost_para[8] * x[end]^2 * y[end] + cost_para[9] * x[end] * y[end]^2 + cost_para[10] * y[end]^3)
 
     obs_cost = @expression( ocp.f.mdl, sum(100*1/10*log(1 + exp(-10*(0.3 +(1/rhoKS *log(sum(exp( rhoKS*( - ( ((   (cos(block_yaw[i]) * (x[j]-block_center_x[i]) + sin(block_yaw[i]) * (y[j]-block_center_y[i]))/block_length[i]  )^p + ( (-sin(block_yaw[i]) * (x[j]-block_center_x[i]) + cos(block_yaw[i]) * (y[j]-block_center_y[i]))/(block_width[i] - 0.35) )^p + 0.01)^(1/p) ) + 1 )  ) for i = 1:block_num) )))  )) for j = 1:ocp.s.states.pts) )
-    # DrivableTubeHard = @constraint(ocp.f.mdl, [j = 2:ocp.s.states.pts], 1/rhoKS *log(sum(exp( rhoKS*( - ( ((   (cos(block_yaw[i]) * (x[j]-block_center_x[i]) + sin(block_yaw[i]) * (y[j]-block_center_y[i]))/block_length[i]   )^p + ( (-sin(block_yaw[i]) * (x[j]-block_center_x[i]) + cos(block_yaw[i]) * (y[j]-block_center_y[i]))/(block_width[i]) )^p + 0.01)^(1/p) ) + 1 )  ) for i = 1:block_num) )>= -0.2)
+    DrivableTubeHard = @constraint(ocp.f.mdl, [j = 2:ocp.s.states.pts], 1/rhoKS *log(sum(exp( rhoKS*( - ( ((   (cos(block_yaw[i]) * (x[j]-block_center_x[i]) + sin(block_yaw[i]) * (y[j]-block_center_y[i]))/block_length[i]   )^p + ( (-sin(block_yaw[i]) * (x[j]-block_center_x[i]) + cos(block_yaw[i]) * (y[j]-block_center_y[i]))/(block_width[i]) )^p + 0.01)^(1/p) ) + 1 )  ) for i = 1:block_num) )>= -0.2)
 
     @constraint(ocp.f.mdl, [j = 2:ocp.s.states.pts], ax[j]  <= -0.1292 * (ux[j] - 60))
     @objective(ocp.f.mdl, Min,  30*obs_cost + 12*obj_goal + 10*sr_cost + 10*sa_cost + 0.02*ax_cost + 0.01*jx_cost + 5*k_cost + 5*v_cost)
@@ -149,7 +153,8 @@ block_num = 25
 nCol = 25
 
 cur_states = [-1.82768, 50.1731, 0.0, 0.0, 1.6806, 5.0, 0.0, 0.0]
-ocp = DefineOCP(cur_states, block_num, nCol)
+T = 4
+ocp = DefineOCP(cur_states, block_num, nCol, T)
 
 
 states_his = vcat(cur_states, 0, 0)
@@ -168,7 +173,7 @@ OptSolve!(ocp)
 for i = 1:1:2000
     println("time = ", t_sim)
     @time begin
-        global center_line, lane_yaw, states_his, sol_t_list, t_sim, δt_sim, states_real, states_real_his, block_num
+        global center_line, lane_yaw, states_his, sol_t_list, t_sim, δt_sim, states_real, states_real_his, block_num,T
         x = ocp.p.x[:, 1]; 
         y = ocp.p.x[:, 2];
         v = ocp.p.x[:, 3]; 
@@ -181,7 +186,7 @@ for i = 1:1:2000
         jx = ocp.p.u[:, 2];
         
         time_list = ocp.r.Tst
-        time_list[end] = 4.0
+        time_list[end] = T
         time_list = time_list.+t_sim
 
 
