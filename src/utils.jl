@@ -16,12 +16,18 @@ function ExprIntegral(ocp::OCP)
     cost = @expression(ocp.f.mdl, 0)
     for j in 2:ocp.f.Np
         if !isnothing(ocp.f.expr[j])
+            if isassigned(ocp.f.params, j)
+                param = ocp.p.params[j, :]
+            else
+                param = Nonparam
+            end
+
             if ocp.f.IntegrationScheme ∈ [:RK1, :RK2, :RK3, :RK4]
-                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], ocp.p.u[j - 1, :]) * ocp.f.TInt[j - 1])
+                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j - 1, :], ocp.p.u[j - 1 - 1, :], param) * ocp.f.TInt[j - 1])
             elseif ocp.f.IntegrationScheme == :trapezoidal
-                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], (ocp.p.u[j - 1, :] + ocp.p.u[j, :]) / 2) * ocp.f.TInt[j - 1])
+                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], (ocp.p.u[j - 1, :] + ocp.p.u[j, :]) / 2, param) * ocp.f.TInt[j - 1])
             elseif ocp.f.IntegrationScheme == :bkwEuler
-                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j - 1, :], ocp.p.u[j - 1, :]) * ocp.f.TInt[j - 1])
+                cost = @expression(ocp.f.mdl, cost + ocp.f.expr[j](ocp.p.x[j, :], ocp.p.u[j, :], param) * ocp.f.TInt[j - 1])
             end
         end
     end
