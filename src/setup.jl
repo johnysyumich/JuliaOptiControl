@@ -1,5 +1,6 @@
 include("types.jl")
 
+
 function defineOCP(;
     numStates::Int = 0,
     numControls::Int = 0,

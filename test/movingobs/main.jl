@@ -1,5 +1,4 @@
-include("src/setup.jl")
-include("src/utils.jl")
+include("../../src/utils.jl")
 include("parameter.jl")
 include("ThreeDOF_Bicycle.jl")
 using Plots

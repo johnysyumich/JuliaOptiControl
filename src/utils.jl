@@ -1,3 +1,6 @@
+include("setup.jl")
+
+
 function OptSolve!(ocp::OCP)
     JuMP.optimize!(ocp.f.mdl)
     ocp.r.TerminalStatus = termination_status(ocp.f.mdl)
@@ -112,8 +115,8 @@ function WarmStart(ocp::OCP)
       flag = false
     end
     if flag == true
-      set_start_value.(ocp.r.x, [ocp.b.X0'; ocp.r.X[2:end, :]])
-      set_start_value.(n.r.ocp.u, [ocp.r.U[2:end, :]; ocp.r.U[end, :]'])
+      set_start_value.(ocp.p.x, [ocp.b.X0'; ocp.r.X[2:end, :]])
+      set_start_value.(ocp.p.u, [ocp.r.U[2:end, :]; ocp.r.U[end, :]'])
     end
     return nothing
 end
@@ -121,11 +124,8 @@ end
 
 function UpdateX0!(ocp::OCP, X0)
     ocp.b.X0 = X0
-    for i = 1:1:size(ocp.s.states.num)
-        if ocp.f.IntegrationScheme ∈ [:bkwEyler, :trapezoidal]
-            fix(ocp.p.x[1, st], ocp.b.X0[st]; force = true)
-        else
-            fix(ocp.p.xvar[1, st], ocp.b.X0[st]; force = true)
-        end
+    for i = 1:1:ocp.s.states.num
+        fix(ocp.p.x[1, i], ocp.b.X0[i]; force = true)
     end
+    WarmStart(ocp)
 end
