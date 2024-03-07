@@ -14,6 +14,7 @@ end
 
 function ExprIntegral(ocp::OCP)
     cost = @expression(ocp.f.mdl, 0)
+    Nonparam = Any
     for j in 2:ocp.f.Np
         if !isnothing(ocp.f.expr[j])
             if isassigned(ocp.f.params, j)

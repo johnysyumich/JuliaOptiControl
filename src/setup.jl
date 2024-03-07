@@ -368,7 +368,7 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
 
         elseif OCPForm.IntegrationScheme[j] == :bkwEuler
             δx[j, :] = @expression(OCPForm.mdl, OCPForm.dx[j + 1](ocp.p.x[j + 1, :], ocp.p.u[j + 1, :], param))
-            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
+            @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] == ocp.p.x[j, i] + δx[j, i] * OCPForm.TInt[j] )
 
         elseif OCPForm.IntegrationScheme[j] == :trapezoidal
             δx1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
