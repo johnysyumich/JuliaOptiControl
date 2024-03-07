@@ -3,6 +3,8 @@ include("src/utils.jl")
 include("parameter.jl")
 include("ThreeDOF_Bicycle.jl")
 using Plots
+
+
 XL = [-2.6, 0, NaN, NaN, -6.283185307179586, -0.62, 10, -2.6]
 XU = [1.801, 300, NaN, NaN, 6.283185307179586, 0.62, 20,  2.6]
 CL=[-2.1, -6.2]
@@ -12,9 +14,8 @@ defineStates!(ocp, [:x,:y,:v,:r,:psi,:sa,:ux,:ax])
 defineControls!(ocp, [:sr, :jx])
 # trapezoidal
 # bkwEuler
-OCPForm = ConfigurePredefined(ocp; (:Np=>31), (:tfDV => true),  (:IntegrationScheme=>:RK2), (:dx => ThreeDOFBicycle_expr), (:expr=>ThreeDOFBicycle_cost), (:params => [0.3, 0.5]))
+OCPForm = ConfigurePredefined(ocp; (:Np=>25), (:tfDV => true),  (:IntegrationScheme=>:RK2), (:dx => ThreeDOFBicycle_expr), (:expr=>ThreeDOFBicycle_cost), (:params => [0.3, 0.5]))
 user_options = ()
-
 
 # scheme = [repeat([:RK4], 5); repeat([:RK3], 5); repeat([:RK2], 5);repeat([:RK1], 5);repeat([:bkwEuler], 5);repeat([:trapezoidal], 5);]
 scheme = [repeat([:RK4], 3); repeat([:bkwEuler], 27)]
