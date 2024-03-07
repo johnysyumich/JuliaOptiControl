@@ -295,7 +295,7 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     
     # Parameters
     Nonparam = Any
-    if isassigned(OCPForm.params)
+    if isassigned(OCPForm.params, 1)
         ocp.p.params = @variable(OCPForm.mdl, Params[i = 1:size(OCPForm.params, 1), j = 1:size(OCPForm.params, 2)] in Parameter(OCPForm.params[i, j]) )
     end
 
