@@ -8,6 +8,17 @@ using Parameters
 using DataFrames
 using Ipopt
 
+export  States,
+        Control,
+        Solver,
+        OCPFormulation,
+        OCPSetting,
+        OCPBound,
+        OCPParameter,
+        OCPResults,
+        OCP
+
+
 _Ipopt_MPC_defaults = (
     "mu_strategy" => "adaptive",
     "max_iter" => 100,
