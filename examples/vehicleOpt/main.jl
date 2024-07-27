@@ -1,9 +1,8 @@
-# include("../../src/utils.jl")
-# include("../../src/NLOCPSolver.jl")
 using NLOCPSolver
+using Plots
+using JuMP
 include("bicycleModel.jl")
 include("parameters.jl")
-using Plots
 
 XL = [-40, -20, -3, -pi/5, -pi/2, 5.0, -pi/12]
 XU = [300, 20, 3, pi/5, pi/2, 15.0, pi/12]
