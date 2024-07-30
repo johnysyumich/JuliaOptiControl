@@ -1,6 +1,3 @@
-include("setup.jl")
-
-
 function OptSolve!(ocp::OCP)
     JuMP.optimize!(ocp.f.mdl)
     ocp.r.TerminalStatus = termination_status(ocp.f.mdl)
