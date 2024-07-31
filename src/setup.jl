@@ -7,7 +7,7 @@ function defineOCP(;
     XU = fill(NaN,numStates),
     CL = fill(NaN,numControls),
     CU = fill(NaN,numControls))::OCP
-    ocp = OCP()
+    ocp = OCP{Float64}()
     if numStates < 0 error("States number must be larger than 0") end
     if numControls < 0 error("Control number must be larger than 0") end
     if length(X0) != numStates error("Number of states do not match X0") end
@@ -71,7 +71,7 @@ function ConfigurePredefined(ocp::OCP; kwargs...)::OCPFormulation
     # all inputs here: tfDV, tf, Np, Integration Scheme
     # Integration scheme: bkwEuler, trapezoidal
     # Trajectory methods: MultipleShooting Collocation
-    OCPForm = OCPFormulation()
+    OCPForm = OCPFormulation{Float64}()
     OCPForm.mdl = JuMP.Model()
     set_silent(OCPForm.mdl)
     kw = Dict(kwargs)
