@@ -1,6 +1,3 @@
-include("setup.jl")
-
-
 function OptSolve!(ocp::OCP)
     JuMP.optimize!(ocp.f.mdl)
     ocp.r.TerminalStatus = termination_status(ocp.f.mdl)
@@ -42,7 +39,7 @@ end
 
 
 function RetrieveSolveStatus(status::MOI.TerminationStatusCode)
-    SolvingStatus = [:Optimal, :UserLimit, :InFeasible]
+    SolvingStatus = [:Optimal, :UserLimit, :Infeasible]
     OptimalList = [MOI.OPTIMAL, MOI.LOCALLY_SOLVED, MOI.ALMOST_OPTIMAL]
     LimitList = [MOI.ITERATION_LIMIT, MOI.TIME_LIMIT, MOI.NODE_LIMIT, MOI.SOLUTION_LIMIT, MOI.MEMORY_LIMIT, MOI.OBJECTIVE_LIMIT, MOI.NORM_LIMIT, MOI.OTHER_LIMIT ]
     

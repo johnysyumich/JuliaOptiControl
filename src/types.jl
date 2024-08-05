@@ -128,5 +128,3 @@ end
     p::OCPParameter{T}                          = OCPParameter{T}()    
     r::OCPResults{T}                            = OCPResults{T}()
 end
-OCPFormulation() = OCPFormulation{Float64}()
-OCP() = OCP{Float64}()
