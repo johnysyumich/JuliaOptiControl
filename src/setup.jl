@@ -507,4 +507,3 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     return nothing
 
 end
-

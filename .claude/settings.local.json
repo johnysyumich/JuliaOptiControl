@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(julia:*)"
+      "Bash(julia:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(git checkout:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
