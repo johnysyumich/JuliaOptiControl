@@ -39,7 +39,46 @@ function circleShape(h,k,r)
     theta = LinRange(0,2*pi,500)
     h .+ r*sin.(theta), k .+ r*cos.(theta)
 end
-plot()
-plot!(circleShape(30,2,6), seriestype = [:shape,], lw=0.5, c=:blue, linecolor=:black, legend=false, fillalpha=0.5, aspect_ratio=1)
-plot!(ocp.r.X[:, 1], ocp.r.X[:, 2], aspect_ratio = 1)
-# plot(ocp.r.X[:, 6])
+# Create comprehensive visualization
+p = plot(layout=(2,2), size=(1000, 800))
+
+# Plot 1: Vehicle trajectory with obstacle
+plot!(p[1], ocp.r.X[:, 1], ocp.r.X[:, 2],
+      title="Vehicle Path Planning with Obstacle",
+      xlabel="X Position [m]",
+      ylabel="Y Position [m]",
+      linewidth=3, color=:blue, label="Vehicle Path")
+plot!(p[1], circleShape(30,2,6), seriestype = [:shape,], lw=2, c=:red,
+      linecolor=:black, fillalpha=0.3, aspect_ratio=1, label="Obstacle")
+scatter!(p[1], [ocp.r.X[1,1]], [ocp.r.X[1,2]], color=:green, markersize=8, label="Start")
+scatter!(p[1], [ocp.r.X[end,1]], [ocp.r.X[end,2]], color=:red, markersize=8, label="End")
+
+# Plot 2: Longitudinal velocity
+plot!(p[2], ocp.r.Tst, ocp.r.X[:, 6],
+      title="Longitudinal Velocity",
+      xlabel="Time [s]",
+      ylabel="Velocity [m/s]",
+      linewidth=2, color=:green, legend=false)
+
+# Plot 3: Steering angle
+plot!(p[3], ocp.r.Tst, rad2deg.(ocp.r.X[:, 7]),
+      title="Steering Angle",
+      xlabel="Time [s]",
+      ylabel="Steering Angle [deg]",
+      linewidth=2, color=:orange, legend=false)
+
+# Plot 4: Control inputs
+plot!(p[4], ocp.r.Tst, ocp.r.U[:, 1],
+      title="Longitudinal Acceleration",
+      xlabel="Time [s]",
+      ylabel="Acceleration [m/s²]",
+      linewidth=2, color=:red, label="Longitudinal")
+plot!(p[4], ocp.r.Tst, rad2deg.(ocp.r.U[:, 2]),
+      linewidth=2, color=:blue, label="Steering Rate [deg/s]")
+
+plot!(p, plot_title="Vehicle Obstacle Avoidance Optimal Control")
+display(p)
+
+# Save the plot
+savefig(p, "figures/vehicleOpt_solution.png")
+println("Saved vehicle optimization plot as 'figures/vehicleOpt_solution.png'")

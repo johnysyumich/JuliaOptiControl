@@ -34,4 +34,48 @@ obs_con1 = @constraint(ocp.f.mdl, [i=1:ocp.s.states.pts-1], 1 <= ((x[(i+1)]-time
 obj = @expression(ocp.f.mdl,  sum((5 * (x[j] - 1.8)^2 + 10 * v[j]^2 +  10 * sr[j]^2 ) * ocp.f.TInt[j - 1] for  j in 2:ocp.f.Np) )
 @objective(ocp.f.mdl, Min,  obj + ocp.f.tf + (y[end] - 200)^2 + (x[end] - 1.8)^2)
 @time OptSolve!(ocp)
-plot(ocp.r.X[:, 1], ocp.r.X[:, 2])
+
+# Create comprehensive visualization
+p = plot(layout=(2,2), size=(1000, 800))
+
+# Plot 1: Vehicle trajectory
+plot!(p[1], ocp.r.X[:, 1], ocp.r.X[:, 2],
+      title="Vehicle Trajectory",
+      xlabel="X Position [m]",
+      ylabel="Y Position [m]",
+      linewidth=2, color=:blue, label="Vehicle Path")
+scatter!(p[1], [ocp.r.X[1,1]], [ocp.r.X[1,2]], color=:green, markersize=8, label="Start")
+scatter!(p[1], [ocp.r.X[end,1]], [ocp.r.X[end,2]], color=:red, markersize=8, label="End")
+
+# Add obstacle
+obstacle_x = obs_info[1, 1] + ocp.r.Tst * obs_info[1, 5]
+obstacle_y = obs_info[1, 2] + ocp.r.Tst * obs_info[1, 6]
+plot!(p[1], obstacle_x, obstacle_y, color=:red, linewidth=3, linestyle=:dash, label="Obstacle Path")
+
+# Plot 2: Velocity profile
+plot!(p[2], ocp.r.Tst, ocp.r.X[:, 3],
+      title="Velocity Profile",
+      xlabel="Time [s]",
+      ylabel="Velocity [m/s]",
+      linewidth=2, color=:red, legend=false)
+
+# Plot 3: Steering inputs
+plot!(p[3], ocp.r.Tst, ocp.r.U[:, 1],
+      title="Steering Rate",
+      xlabel="Time [s]",
+      ylabel="Steering Rate [rad/s]",
+      linewidth=2, color=:green, legend=false)
+
+# Plot 4: Longitudinal acceleration
+plot!(p[4], ocp.r.Tst, ocp.r.U[:, 2],
+      title="Longitudinal Acceleration",
+      xlabel="Time [s]",
+      ylabel="Acceleration [m/s²]",
+      linewidth=2, color=:orange, legend=false)
+
+plot!(p, plot_title="Moving Obstacle Avoidance - Vehicle Trajectory Optimization")
+display(p)
+
+# Save the plot
+savefig(p, "figures/movingobs_solution.png")
+println("Saved comprehensive plot as 'figures/movingobs_solution.png'")

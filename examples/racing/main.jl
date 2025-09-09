@@ -289,4 +289,44 @@ for i = 1:1:2000
     
     display(h1)
 
+    # Save comprehensive plots
+    if i == 1  # Save on first iteration
+        # Create summary plot
+        p_summary = plot(layout=(2,2), size=(1200, 800))
+
+        # Vehicle trajectory with track bounds
+        plot!(p_summary[1], value.(x), value.(y),
+              title="Racing Line Optimization",
+              xlabel="X [m]", ylabel="Y [m]",
+              linewidth=3, color=:blue, label="Optimal Path")
+        plot!(p_summary[1], left_lane_bound[:, 1], left_lane_bound[:, 2],
+              color=:black, linewidth=2, label="Track Bounds")
+        plot!(p_summary[1], right_lane_bound[:, 1], right_lane_bound[:, 2],
+              color=:black, linewidth=2, label="")
+        plot!(p_summary[1], mpc_center_line[:,1], mpc_center_line[:,2],
+              color=:red, linestyle=:dash, label="Center Line")
+
+        # Speed profile
+        plot!(p_summary[2], time_list, 2.23*value.(ux),
+              title="Speed Profile",
+              xlabel="Time [s]", ylabel="Speed [mph]",
+              linewidth=2, color=:green, legend=false)
+
+        # Steering angle
+        plot!(p_summary[3], time_list, rad2deg.(value.(sa)),
+              title="Steering Angle",
+              xlabel="Time [s]", ylabel="Steering [deg]",
+              linewidth=2, color=:red, legend=false)
+
+        # Acceleration
+        plot!(p_summary[4], time_list, value.(ax),
+              title="Longitudinal Acceleration",
+              xlabel="Time [s]", ylabel="Acceleration [m/s²]",
+              linewidth=2, color=:orange, legend=false)
+
+        plot!(p_summary, plot_title="Racing Vehicle Optimal Control - Thunderhill West")
+        savefig(p_summary, "figures/racing_solution.png")
+        println("Saved racing solution plot as 'figures/racing_solution.png'")
+    end
+
 end
