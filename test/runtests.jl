@@ -1,5 +1,5 @@
 using JuMP
-using NLOCPSolver
+using OptimalControl
 using Test
 
 la = 1.56 
