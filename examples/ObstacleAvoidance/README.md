@@ -86,8 +86,13 @@ This encourages:
 Run the vehicle obstacle avoidance example:
 
 ```julia
+<<<<<<< HEAD:examples/ObstacleAvoidance/README.md
 # Navigate to the ObstacleAvoidance example directory
 cd("examples/ObstacleAvoidance")
+=======
+# Navigate to the vehicleOpt example directory
+cd("examples/vehicleOpt")
+>>>>>>> dddbda807208f3efda6716e1f5b2bea7fe8277d1:examples/vehicleOpt/README.md
 
 # Run the main script
 include("main.jl")
@@ -103,6 +108,7 @@ The example will:
 
 The optimal solution demonstrates intelligent collision avoidance behavior:
 
+<<<<<<< HEAD:examples/ObstacleAvoidance/README.md
 <div align="center">
 <img src="figures/obs_avoid_solution.png" alt="Vehicle Optimization Solution" width="75%">
 </div>
@@ -112,6 +118,9 @@ The optimal solution demonstrates intelligent collision avoidance behavior:
 <div align="center">
 <img src="figures/obs_avoid_animation.gif" alt="Vehicle Obstacle Avoidance Animation" width="50%">
 </div>
+=======
+![Vehicle Optimization Solution](figures/vehicleOpt_solution.png)
+>>>>>>> dddbda807208f3efda6716e1f5b2bea7fe8277d1:examples/vehicleOpt/README.md
 
 The trajectory shows:
 - **Approach phase**: Vehicle approaches obstacle while maintaining speed
