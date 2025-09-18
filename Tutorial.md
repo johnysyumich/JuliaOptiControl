@@ -8,44 +8,34 @@ This is a detailed tutorial for the JuliaOptimalControl.jl package, covering ins
 - Julia 1.10.2 or higher
 - Package manager access
 
-### Installing Dependencies
-
-The JuliaOptimalControl.jl package requires several dependencies. Install them using Julia's package manager:
-
-```julia
-import Pkg
-
-# Core optimization dependencies
-Pkg.add("JuMP")
-Pkg.add("Ipopt")
-
-# Utility packages
-Pkg.add("Parameters")
-Pkg.add("DataFrames")
-Pkg.add("LinearAlgebra")
-Pkg.add("Statistics")
-
-# Optional packages for advanced features
-Pkg.add("HSL_jll")        # High-performance linear solvers
-Pkg.add("Interpolations") # Spline interpolation
-Pkg.add("MAT")           # MATLAB file I/O
-
-# Visualization (choose one)
-Pkg.add("Plots")         # General plotting
-# Alternatively: Pkg.add("PlotlyJS") or Pkg.add("GR")
-```
-
 ### Installing JuliaOptimalControl.jl
 
-Since this appears to be a local development package, you can install it by:
+**Quick Installation** (Recommended):
 
 ```julia
-# Option 1: If working in the package directory
+using Pkg
+
+# Install directly from GitHub - this automatically installs ALL dependencies!
+Pkg.add("https://github.com/johnysyumich/JuliaOptiControl")
+
+# Verify installation
+using JuliaOptimalControl
+```
+
+That's it! Julia automatically installs all required dependencies (JuMP, Ipopt, Parameters, DataFrames, etc.) from the `Project.toml` file.
+
+**Alternative installation methods:**
+
+```julia
+# Install specific branch/version
+Pkg.add(url="https://github.com/johnysyumich/JuliaOptiControl", branch="main")
+
+# Development mode for local development
+Pkg.develop(path="/path/to/JuliaOptimalControl")
+
+# Local installation if you have the source code
 Pkg.activate(".")
 Pkg.instantiate()
-
-# Option 2: Development mode (from any directory)
-# Pkg.develop(path="/path/to/JuliaOptimalControl")
 ```
 
 ### Import Required Packages
