@@ -64,7 +64,7 @@ subject to:
 - **Boundary conditions**: $x(0) = x_0$, $x(t_f) \in S_f$
 - **Variable bounds**: $x_L \leq x(t) \leq x_U$, $u_L \leq u(t) \leq u_U$
 
-Where:
+where:
 - $x(t)$ are the state variables
 - $u(t)$ are the control inputs
 - $p$ are parameters
