@@ -262,9 +262,9 @@ ExprIntegral(ocp::OCP) -> JuMP.AffExpr
 ```
 
 **Functionality**:
-• Integrates cost expressions using the same integration scheme as dynamics
-• Automatically applies proper quadrature rules based on chosen integration method
-• Returns a JuMP expression suitable for use in objective functions
+- Integrates cost expressions using the same integration scheme as dynamics
+- Automatically applies proper quadrature rules based on chosen integration method
+- Returns a JuMP expression suitable for use in objective functions
 
 ---
 
@@ -278,9 +278,9 @@ WarmStart(ocp::OCP)
 ```
 
 **Functionality**:
-• Sets initial guess for state and control variables using previous solution
-• Enables faster solver convergence for iterative applications like MPC
-• Automatically checks if solver supports warm starting
+- Sets initial guess for state and control variables using previous solution
+- Enables faster solver convergence for iterative applications like MPC
+- Automatically checks if solver supports warm starting
 
 ---
 
@@ -294,9 +294,9 @@ UpdateX0!(ocp::OCP, X0::Vector)
 ```
 
 **Functionality**:
-• Updates stored initial conditions
-• Forces new equality constraints for initial states
-• Automatically applies warm starting with shifted previous solution
+- Updates stored initial conditions
+- Forces new equality constraints for initial states
+- Automatically applies warm starting with shifted previous solution
 
 ---
 
@@ -310,9 +310,9 @@ ResultsToDataFrame(ocp::OCP) -> DataFrame
 ```
 
 **Functionality**:
-• Creates structured data table with named columns
-• Includes time vector and all state/control trajectories
-• Uses symbolic names defined in `defineStates!()` and `defineControls!()`
+- Creates structured data table with named columns
+- Includes time vector and all state/control trajectories
+- Uses symbolic names defined in `defineStates!()` and `defineControls!()`
 
 **Outputs**: DataFrame with columns:
 - `:t`: Time points

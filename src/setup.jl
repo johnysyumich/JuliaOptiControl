@@ -1,9 +1,6 @@
 """
 Create and initialize an optimal control problem structure.
 """
-"""
-Create and initialize an optimal control problem structure.
-"""
 function defineOCP(;
     numStates::Int = 0,
     numControls::Int = 0,
@@ -48,14 +45,11 @@ function defineOCP(;
     return ocp
 end
 
-"""
-Assign symbolic names to state variables.
-"""
+
 """
 Assign symbolic names to state variables.
 """
 function defineStates!(ocp::OCP, states::Vector{Symbol})
-    if length(states) != ocp.s.states.num error("Wrong number of state variables") end
     if length(states) != ocp.s.states.num error("Wrong number of state variables") end
     ocp.s.states.name = states
     return nothing
@@ -64,18 +58,12 @@ end
 """
 Assign symbolic names to control variables.
 """
-"""
-Assign symbolic names to control variables.
-"""
 function defineControls!(ocp::OCP, controls::Vector{Symbol})
-    if length(controls) != ocp.s.control.num error("Wrong number of control variables") end
     if length(controls) != ocp.s.control.num error("Wrong number of control variables") end
     ocp.s.control.name = controls
     return nothing
 end
-"""
-Enable tolerance-based boundary conditions.
-"""
+
 """
 Enable tolerance-based boundary conditions.
 """
@@ -84,16 +72,7 @@ function defineTolerance!(ocp::OCP; X0_tol=fill(NaN, ocp.s.states.num), XF_tol=f
     if !all(isnan.(X0_tol))
         ocp.s.X0slack = true        # Switch from equality to inequality constraints
         ocp.b.X0_tol = X0_tol       # Store tolerance values
-    # Enable initial state tolerance if any values are provided (not all NaN)
-    if !all(isnan.(X0_tol))
-        ocp.s.X0slack = true        # Switch from equality to inequality constraints
-        ocp.b.X0_tol = X0_tol       # Store tolerance values
     end
-
-    # Enable final state tolerance if any values are provided (not all NaN)
-    if !all(isnan.(XF_tol))
-        ocp.s.XFslack = true        # Switch from equality to inequality constraints
-        ocp.b.XF_tol = XF_tol       # Store tolerance values
 
     # Enable final state tolerance if any values are provided (not all NaN)
     if !all(isnan.(XF_tol))
@@ -108,57 +87,15 @@ function ValidateScheme(scheme)
     num = maximum(size(scheme))
     for i in 1:num
         # Check if each scheme is in the list of supported integration methods
-        # Check if each scheme is in the list of supported integration methods
         if scheme[i] ∉ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]
             return false, i  # Return failure and index of invalid scheme
             return false, i  # Return failure and index of invalid scheme
         end
     end
     return true  # All schemes are valid
-    return true  # All schemes are valid
 end
 
 
-"""
-Configure a predefined optimal control formulation.
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           KEYWORD ARGUMENTS                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ REQUIRED ARGUMENTS:                                                         │
-│   Np::Int               │ Number of discretization points                   │
-│   dx::Function          │ Dynamics function f(x,u,p) → state derivatives    │
-│                                                                             │
-│ TIME CONFIGURATION (choose one):                                            │
-│   tf::Real              │ Fixed final time horizon                          │
-│   tfDV::Bool            │ Set to true for variable final time               │
-│                                                                             │
-│ INTEGRATION SCHEMES:                                                        │
-│   IntegrationScheme::Symbol │ Integration method for all intervals:         │
-│     :RK1                │ Forward Euler (1st order)                         │
-│     :RK2                │ Runge-Kutta 2nd order                             │
-│     :RK3                │ Runge-Kutta 3rd order                             │
-│     :RK4                │ Runge-Kutta 4th order                             │
-│     :trapezoidal        │ Trapezoidal rule                                  │
-│     :bkwEuler           │ Backward Euler                                    │
-│                                                                             │
-│ OPTIONAL ARGUMENTS:                                                         │
-│   cons::Function        │ Path constraint function g(x,u,p) ≥ 0             │
-│   expr::Function        │ Cost integrand function L(x,u,p)                  │
-│   params::Matrix        │ Parameter values for dynamics/constraints         │
-│                         │   Size: (Np x num_params) or (1 x num_params)     │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-Time Configuration Rules:
-• If tfDV=true: tf becomes optimization variable with bounds [tfMin, tfMax]
-• If tfDV=false: Must provide fixed tf value
-• Time intervals: Δt = tf x (1/(Np-1)) for uniform spacing
-
-Parameter Broadcasting:
-• If params provided: Available as p argument in dynamics/constraints
-• If no params: Use Nonparam placeholder in function calls
-• Broadcasting: (1xn) parameters repeated for all time points
-"""
 """
 Configure a predefined optimal control formulation.
 
@@ -377,27 +314,20 @@ end
 function CheckOCPFormulation(ocp::OCP, OCPForm::OCPFormulation)
     tw = OCPForm.tw
     # Verify time weights sum to 1 (normalized)
-    # Verify time weights sum to 1 (normalized)
     if abs(1 - sum(tw)) > 1e-4
         error("Wrong weights of tf")
     end
 
     # Basic size consistency checks
-    # Basic size consistency checks
     if length(OCPForm.tw) != length(OCPForm.TInt) error("Size of tw and TInt do not match") end
     if (OCPForm.Np < 0) || (typeof(OCPForm.Np) != Int64) error("Wrong input of Np") end
 
     # Validate tf type based on whether it's a design variable
-
-    # Validate tf type based on whether it's a design variable
     if OCPForm.tfDV == true && typeof(OCPForm.tf) != JuMP.VariableRef error("Wrong type of tf since tfDV is $(OCPForm.tfDV)") end
-    if OCPForm.tfDV == false
     if OCPForm.tfDV == false
         if !(typeof(OCPForm.tf) <: Real)
             error("Wrong type of tf since tfDV is $(OCPForm.tfDV)")
-            error("Wrong type of tf since tfDV is $(OCPForm.tfDV)")
         else
-            # Check fixed time horizon is within bounds
             # Check fixed time horizon is within bounds
             if OCPForm.tf < ocp.b.tfMin || OCPForm.tf > ocp.b.tfMax
                 error("Please make sure tf ∈ [$(ocp.b.tfMin), $(ocp.b.tfMax)]")
@@ -444,9 +374,7 @@ function defineSolver!(OCPForm::OCPFormulation, SolverName::Symbol, Options::Tup
 end
 
 
-"""
-Calculate number of intermediate variables needed for Runge-Kutta schemes.
-"""
+
 """
 Calculate number of intermediate variables needed for Runge-Kutta schemes.
 """
@@ -464,17 +392,13 @@ function CalXvar(Scheme)
     return Int32(ceil(count))
 end
 
-"""
-Build the complete discretized optimal control problem in JuMP.
-"""
+
 """
 Build the complete discretized optimal control problem in JuMP.
 """
 function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     ocp.f = OCPForm
     CheckOCPFormulation(ocp, OCPForm)
-
-    # Configure solver if none attached
 
     # Configure solver if none attached
     if solver_name(OCPForm.mdl) == "No optimizer attached."
@@ -484,23 +408,15 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     # Create decision variables with bounds
     ocp.s.states.pts = ocp.s.control.pts = OCPForm.Np  # Both use same discretization
     # State variables: x[time_point, state_index] with bounds XL ≤ x ≤ XU
-
-    # Create decision variables with bounds
-    ocp.s.states.pts = ocp.s.control.pts = OCPForm.Np  # Both use same discretization
-    # State variables: x[time_point, state_index] with bounds XL ≤ x ≤ XU
     ocp.p.x = @variable(OCPForm.mdl, ocp.b.XL[i] <= x[j in 1:ocp.s.states.pts, i in 1:ocp.s.states.num] <= ocp.b.XU[i])
     # Control variables: u[time_point, control_index] with bounds CL ≤ u ≤ CU
-    # Control variables: u[time_point, control_index] with bounds CL ≤ u ≤ CU
     ocp.p.u = @variable(OCPForm.mdl, ocp.b.CL[i] <= u[j in 1:ocp.s.control.pts, i in 1:ocp.s.control.num] <= ocp.b.CU[i])
-    # Store variables in model for easy access
     # Store variables in model for easy access
     OCPForm.mdl[:x] = ocp.p.x
     OCPForm.mdl[:u] = ocp.p.u
 
     # Apply initial state constraints
-    # Apply initial state constraints
     if !ocp.s.X0slack
-        # Fixed initial states: x(0) = X0
         # Fixed initial states: x(0) = X0
         for st = 1:1:ocp.s.states.num
             if !isnan(ocp.b.X0[st])
@@ -512,15 +428,12 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
         end
     else
         # Tolerance-based initial states: X0 - tol ≤ x(0) ≤ X0 + tol
-        # Tolerance-based initial states: X0 - tol ≤ x(0) ≤ X0 + tol
         for st = 1:1:ocp.s.states.num
             if !isnan(ocp.b.X0[st])
                 if !isnan(ocp.b.X0_tol[st])
                     # Add inequality constraint with tolerance
-                    # Add inequality constraint with tolerance
                     @constraint(OCPForm.mdl, ocp.b.X0[st] - ocp.b.X0_tol[st] <= OCPForm.mdl[:x][1, st] <= ocp.b.X0[st] + ocp.b.X0_tol[st])
                 else
-                    # No tolerance specified, use equality
                     # No tolerance specified, use equality
                     @constraint(OCPForm.mdl, OCPForm.mdl[:x][1, st] == ocp.b.X0[st])
                 end
@@ -529,10 +442,7 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     end
 
     # Apply final state constraints
-
-    # Apply final state constraints
     if !ocp.s.XFslack
-        # Fixed final states: x(tf) = XF
         # Fixed final states: x(tf) = XF
         for st = 1:1:ocp.s.states.num
             if !isnan(ocp.b.XF[st])
@@ -544,15 +454,12 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
         end
     else
         # Tolerance-based final states: XF - tol ≤ x(tf) ≤ XF + tol
-        # Tolerance-based final states: XF - tol ≤ x(tf) ≤ XF + tol
         for st = 1:1:ocp.s.states.num
             if !isnan(ocp.b.XF[st])
                 if !isnan(ocp.b.XF_tol[st])
                     # Add inequality constraint with tolerance
-                    # Add inequality constraint with tolerance
                     @constraint(OCPForm.mdl, ocp.b.XF[st] - ocp.b.XF_tol[st] <= OCPForm.mdl[:x][end, st] <= ocp.b.XF[st] + ocp.b.XF_tol[st])
                 else
-                    # No tolerance specified, use equality
                     # No tolerance specified, use equality
                     @constraint(OCPForm.mdl, OCPForm.mdl[:x][end, st] == ocp.b.XF[st])
                 end
@@ -566,10 +473,6 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
         ocp.p.params = @variable(OCPForm.mdl, Params[i = 1:size(OCPForm.params, 1), j = 1:size(OCPForm.params, 2)] in Parameter(OCPForm.params[i, j]) )
     end
 
-
-
-
-
     # Dynamical Constraints
     δx = Matrix{Any}(undef, ocp.s.states.pts, ocp.s.states.num)
 
@@ -581,43 +484,29 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     end
 
 
-
-    # Generate dynamics constraints for each time interval
-    for j in 1:ocp.s.states.pts - 1  # Loop through all intervals (Np-1 total)
-        # Get parameters for this time point
     # Generate dynamics constraints for each time interval
     for j in 1:ocp.s.states.pts - 1  # Loop through all intervals (Np-1 total)
         # Get parameters for this time point
         if isassigned(OCPForm.params, j)
             param = ocp.p.params[j, :]  # Use provided parameters
-            param = ocp.p.params[j, :]  # Use provided parameters
         else
-            param = Nonparam            # No parameters
             param = Nonparam            # No parameters
         end
 
-        # Apply integration scheme based on method chosen for this interval
 
         # Apply integration scheme based on method chosen for this interval
         if OCPForm.IntegrationScheme[j] == :RK2
             # Runge-Kutta 2nd order: x_{k+1} = x_k + (k1 + k2)/2 * Δt
             xk1 = xvar[ColumnCounter, :]  # Intermediate state at t + Δt/2
-            # Runge-Kutta 2nd order: x_{k+1} = x_k + (k1 + k2)/2 * Δt
-            xk1 = xvar[ColumnCounter, :]  # Intermediate state at t + Δt/2
             ColumnCounter += 1
-            # k1 = f(x_k, u_k) - slope at beginning of interval
             # k1 = f(x_k, u_k) - slope at beginning of interval
             k1 = @expression(OCPForm.mdl, OCPForm.dx[j](ocp.p.x[j, :], ocp.p.u[j, :], param))
             # k2 = f(x_k + k1*Δt, u_k) - slope at end of interval
-            # k2 = f(x_k + k1*Δt, u_k) - slope at end of interval
             k2 = @expression(OCPForm.mdl, OCPForm.dx[j](xk1, ocp.p.u[j, :], param))
-            # Constraint: xk1 = x_k + k1 * Δt (intermediate point)
             # Constraint: xk1 = x_k + k1 * Δt (intermediate point)
             @constraint(OCPForm.mdl, [i = 1:ocp.s.states.num],  xk1[i] - ocp.p.x[j, i] == k1[i] * OCPForm.TInt[j])
             # Average slope for RK2
-            # Average slope for RK2
             δx[j, :] = @expression(OCPForm.mdl, k1 ./ 2 .+ k2 ./ 2)
-            # Integration constraint: x_{k+1} = x_k + δx * Δt
             # Integration constraint: x_{k+1} = x_k + δx * Δt
             @constraint(OCPForm.mdl, [i=1:ocp.s.states.num], ocp.p.x[j + 1, i] - ocp.p.x[j, i] == δx[j, i] * OCPForm.TInt[j])
         elseif OCPForm.IntegrationScheme[j] == :RK3
@@ -673,7 +562,6 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
 
     ocp.p.δx = δx
   
-    
     # Inner States Constraints
     for j in 1:ocp.s.states.pts 
         if isassigned(OCPForm.params, j)
