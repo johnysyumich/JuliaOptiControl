@@ -341,7 +341,7 @@ Classic underactuated control problem demonstrating energy-based strategies for 
 ---
 
 #### 4.2 Vehicle Obstacle Avoidance
-**Location**: [`examples/vehicleOpt/`](examples/vehicleOpt/)
+**Location**: [`examples/ObstacleAvoidance/`](examples/ObstacleAvoidance/)
 
 Optimal trajectory planning for vehicles navigating around static obstacles using bicycle vehicle dynamics.
 
@@ -355,16 +355,7 @@ Optimal trajectory planning for vehicles navigating around static obstacles usin
 
 ---
 
-#### 4.3 Racing Vehicle Optimization
-**Location**: [`examples/racing/`](examples/racing/)
-
-High-performance vehicle trajectory optimization for racing scenarios with track boundaries and performance objectives.
-
-**Key Concepts**: Racing line optimization, performance driving, track constraints
-
----
-
-#### 4.4 Rocket Landing Control
+#### 4.3 Rocket Landing Control
 **Location**: [`examples/rocket_landing/`](examples/rocket_landing/)
 
 Optimal guidance for powered rocket landing with fuel-optimal trajectories and thrust vector control.
@@ -373,12 +364,6 @@ Optimal guidance for powered rocket landing with fuel-optimal trajectories and t
 
 ---
 
-#### 4.5 Moving Obstacle Avoidance
-**Location**: [`examples/movingobs/`](examples/movingobs/)
-
-Dynamic obstacle avoidance with time-varying constraints and predictive collision avoidance.
-
-**Key Concepts**: Dynamic environments, predictive control, time-varying constraints
 
 ### Running Examples
 
