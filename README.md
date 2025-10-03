@@ -28,7 +28,7 @@ That's it! Julia automatically installs all required dependencies (JuMP, Ipopt, 
 
 ```julia
 # Install specific branch/version
-Pkg.add(url="https://github.com/johnysyumich/JuliaOptiControl", branch="main")
+Pkg.add(url="https://github.com/johnysyumich/JuliaOptiControl", rev="main")
 
 # Development mode for local development
 Pkg.develop(path="/path/to/JuliaOptimalControl")
