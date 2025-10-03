@@ -1,5 +1,5 @@
-# Author: Siyuan Yu and Congkai Shen
-# Position: Graduate Student in University of Michigan
+# Authors: Siyuan Yu and Congkai Shen
+# Affiliation: Graduate Students at the University of Michigan
 # Date Created: 02/28/2024
 
 """
