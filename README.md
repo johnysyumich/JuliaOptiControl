@@ -16,7 +16,7 @@ This is a detailed tutorial for the JuliaOptimalControl.jl package, covering ins
 using Pkg
 
 # Install directly from GitHub - this automatically installs ALL dependencies!
-Pkg.add("https://github.com/johnysyumich/JuliaOptiControl")
+Pkg.add(url="https://github.com/johnysyumich/JuliaOptiControl")
 
 # Verify installation
 using JuliaOptimalControl
