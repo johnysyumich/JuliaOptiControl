@@ -13,8 +13,6 @@ function defineOCP(;
     ocp = OCP{Float64}()
 
     # Input validation
-
-    # Input validation
     if numStates < 0 error("States number must be larger than 0") end
     if numControls < 0 error("Control number must be larger than 0") end
     if length(X0) != numStates error("Number of states do not match X0") end
@@ -25,21 +23,19 @@ function defineOCP(;
     if length(CU) != numControls error("Number of controls do not match CU") end
 
     # Initialize problem dimensions
-    # Initialize problem dimensions
     ocp.s.states.num    = numStates
     ocp.s.control.num   = numControls
 
 
-    # Set boundary conditions and bounds
-    # Set boundary conditions and bounds
-    ocp.b.X0            = X0        # Initial states        # Initial states
-    ocp.b.X0_tol        = fill(NaN, numStates)  # No tolerance by default  # No tolerance by default
-    ocp.b.XF_tol        = fill(NaN, numStates)  # No tolerance by default  # No tolerance by default
-    ocp.b.XL            = XL        # State lower bounds        # State lower bounds
-    ocp.b.XF            = XF        # Final states        # Final states
-    ocp.b.XU            = XU        # State upper bounds        # State upper bounds
-    ocp.b.CL            = CL        # Control lower bounds        # Control lower bounds
-    ocp.b.CU            = CU        # Control upper bounds        # Control upper bounds
+    # Set boundary conditions and bounds    
+    ocp.b.X0            = X0        # Initial states
+    ocp.b.X0_tol        = fill(NaN, numStates)  # No tolerance by default
+    ocp.b.XF_tol        = fill(NaN, numStates)  # No tolerance by default
+    ocp.b.XL            = XL        # State lower bounds
+    ocp.b.XF            = XF        # Final states
+    ocp.b.XU            = XU        # State upper bounds
+    ocp.b.CL            = CL        # Control lower bounds
+    ocp.b.CU            = CU        # Control upper bounds
 
 
     return ocp
@@ -187,7 +183,6 @@ function _configure_final_time!(OCPForm::OCPFormulation, kw::Dict, ocp::OCP)
             error("Please make sure tf ∈ [$(ocp.b.tfMin), $(ocp.b.tfMax)]")
         end
     else
-        # No fixed time provided - must use tf as design variable
         # No fixed time provided - must use tf as design variable
         if OCPForm.tfDV == false
             error("Either treat tf as design variable or use fixed time horizon")
