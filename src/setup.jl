@@ -85,7 +85,6 @@ function ValidateScheme(scheme)
         # Check if each scheme is in the list of supported integration methods
         if scheme[i] ∉ [:bkwEuler, :trapezoidal, :RK1, :RK2, :RK3, :RK4]
             return false, i  # Return failure and index of invalid scheme
-            return false, i  # Return failure and index of invalid scheme
         end
     end
     return true  # All schemes are valid
@@ -417,9 +416,6 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
             if !isnan(ocp.b.X0[st])
                 fix(OCPForm.mdl[:x][1, st], ocp.b.X0[st]; force = true)  # Fix state variable
             end
-            if !isnan(ocp.b.X0[st])
-                fix(OCPForm.mdl[:x][1, st], ocp.b.X0[st]; force = true)  # Fix state variable
-            end
         end
     else
         # Tolerance-based initial states: X0 - tol ≤ x(0) ≤ X0 + tol
@@ -440,9 +436,6 @@ function OCPdef!(ocp::OCP, OCPForm::OCPFormulation)
     if !ocp.s.XFslack
         # Fixed final states: x(tf) = XF
         for st = 1:1:ocp.s.states.num
-            if !isnan(ocp.b.XF[st])
-                fix(OCPForm.mdl[:x][end, st], ocp.b.XF[st]; force = true)  # Fix final state
-            end
             if !isnan(ocp.b.XF[st])
                 fix(OCPForm.mdl[:x][end, st], ocp.b.XF[st]; force = true)  # Fix final state
             end
